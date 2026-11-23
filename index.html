@@ -1,1 +1,24 @@
-
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>3D Ev Turu</title>
+  <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.1.0/model-viewer.min.js"></script>
+  <style>
+    body { margin: 0; font-family: Arial, sans-serif; }
+    model-viewer { width: 100%; height: 100dvh; }
+  </style>
+</head>
+<body>
+  <model-viewer id="viewer" camera-controls touch-action="pan-y" auto-rotate shadow-intensity="0.5"></model-viewer>
+  <script>
+    const file = new URLSearchParams(location.search).get("model");
+    if (file && file.toLowerCase().endsWith(".glb") && !file.includes("/") && !file.includes("\\")) {
+      document.getElementById("viewer").src = "./" + encodeURIComponent(file);
+    } else {
+      document.body.textContent = "Model bağlantısı eksik.";
+    }
+  </script>
+</body>
+</html>
