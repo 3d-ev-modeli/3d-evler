@@ -891,10 +891,9 @@ model.traverse(obj => {
       s * 0.015,
       size.z + s * 0.28
     ),
-    new THREE.MeshStandardMaterial({
-      color: 0x78965b,
-      roughness: 1
-    })
+new THREE.MeshBasicMaterial({
+  color: 0x78965b
+})
   );
 
 grass.position.y = -s * 0.0075 + 0.009;
