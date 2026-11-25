@@ -42,13 +42,19 @@ canvas {
   background: #f5f6f8;
 }
 
+
 #propertyTitle {
   text-align: center;
-  padding: 14px;
-  font-size: 18px;
-  font-weight: bold;
+  padding: 28px 15px 18px;
+  font-family: "Segoe UI", Arial, sans-serif;
+  font-size: clamp(22px, 4vw, 32px);
+  font-weight: 500;
+  letter-spacing: 2px;
+  color: #333333;
   background: white;
+  overflow-wrap: anywhere;
 }
+
 
 #panel {
   max-width: 850px;
@@ -789,6 +795,9 @@ async function loadModels() {
 }
 
 if (file && isGLB(file)) {
+  propertyTitle.textContent = niceName(file);
+  propertyTitle.hidden = false;
+
 
   tour.hidden = false;
   openModel(null, file);
