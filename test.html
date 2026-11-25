@@ -132,30 +132,29 @@ new GLTFLoader().load(
 
     const model = gltf.scene;
     
-model.traverse(obj => {
-  if (!obj.isMesh || !obj.geometry) return;
 
-  obj.geometry.computeBoundingBox();
+if (file === "Untitled.glb") {
+  model.traverse(obj => {
+    if (!obj.isMesh || !obj.material) return;
 
-  const s = obj.geometry.boundingBox
-    .getSize(new THREE.Vector3());
+    const match = (obj.material.name || "")
+      .match(/^Material_(\d+)$/);
 
-  const dimensions = [s.x, s.y, s.z]
-    .sort((a, b) => a - b);
+    if (!match) return;
 
-  const count = obj.geometry.attributes.position.count;
+    const n = Number(match[1]);
 
-  if (
-    dimensions[0] < 0.003 &&
-    dimensions[1] >= 0.09 &&
-    dimensions[1] <= 0.30 &&
-    dimensions[2] >= 0.40 &&
-    dimensions[2] <= 0.80 &&
-    (count === 48 || count > 1000)
-  ) {
-    obj.visible = false;
-  }
-});
+    if (
+      (n >= 16 && n <= 33) ||
+      (n >= 35 && n <= 40) ||
+      (n >= 43 && n <= 54)
+    ) {
+      obj.visible = false;
+    }
+  });
+}
+
+
 
     
 if (file === "umut sitesi.glb") {
