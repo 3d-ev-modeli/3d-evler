@@ -52,7 +52,7 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 document.body.appendChild(renderer.domElement);
 
 scene.add(new THREE.HemisphereLight(
-  0xffffff, 0xaaaaaa, 2
+ 0xffffff, 0xaaaaaa, 2.8
 ));
 
 const light = new THREE.DirectionalLight(
@@ -67,8 +67,8 @@ const ground = new Reflector(
   new THREE.PlaneGeometry(200, 200),
   {
     color: 0xffffff,
-    textureWidth: 1024,
-    textureHeight: 1024
+    textureWidth: 256,
+    textureHeight: 256
   }
 );
 
@@ -107,7 +107,7 @@ scene.add(contactShadow);
 ground.material.fragmentShader =
   ground.material.fragmentShader.replace(
     "blendOverlay( base.rgb, color )",
-    "mix(vec3(0.96), base.rgb, 0.22)"
+    "mix(vec3(0.96), base.rgb, 0.13)"
   );
 
 const controls = new OrbitControls(
