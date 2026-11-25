@@ -131,6 +131,28 @@ new GLTFLoader().load(
   gltf => {
 
     const model = gltf.scene;
+    
+if (file === "umut sitesi.glb") {
+  model.traverse(obj => {
+    if (obj.isMesh && obj.material) {
+      const name = obj.material.name || "";
+      const match = name.match(/^Material_(\d+)$/);
+
+      if (match) {
+        const n = Number(match[1]);
+
+        if (
+          (n >= 46 && n <= 85) ||
+          (n >= 90 && n <= 98) ||
+          (n >= 102 && n <= 132)
+        ) {
+          obj.visible = false;
+        }
+      }
+    }
+  });
+}
+
 
     const box = new THREE.Box3().setFromObject(model);
     const center = box.getCenter(new THREE.Vector3());
