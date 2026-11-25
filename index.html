@@ -6,8 +6,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>3D Ev Turu</title>
 
-<script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.1.0/model-viewer.min.js"></script>
-
 <style>
 body {
   margin: 0;
@@ -15,32 +13,33 @@ body {
   background: #f5f6f8;
 }
 
-model-viewer {
-  width: 100%;
-  height: 100%;
-  background: white;
-}
-
 #tour {
   height: 100dvh;
   display: flex;
   flex-direction: column;
   background: white;
+  overflow: hidden;
 }
 
 #viewer {
   flex: 1;
   min-height: 0;
+  position: relative;
+  overflow: hidden;
 }
 
-#floors {
+canvas {
+  display: block;
+  touch-action: none;
+}
+
+#floors, #controls {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   gap: 8px;
-  padding: 12px;
+  padding: 10px;
   background: #f5f6f8;
-  border-bottom: 1px solid #ddd;
 }
 
 #propertyTitle {
@@ -93,6 +92,11 @@ button, .open {
   color: white;
 }
 
+#controls button {
+  margin: 0;
+  font-size: 13px;
+}
+
 .info {
   color: #777;
   font-size: 13px;
@@ -109,33 +113,36 @@ button, .open {
   display: none !important;
 }
 </style>
-</head>
 
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+  }
+}
+</script>
+
+</head>
 <body>
 
 <div id="tour" hidden>
 
   <div id="propertyTitle" hidden></div>
-
   <div id="floors" hidden></div>
-
   <div id="status" hidden></div>
 
-  
-  <model-viewer
-    id="viewer"
-    camera-controls
-    interaction-prompt="none"
-    touch-action="pan-y"
-    auto-rotate
-    auto-rotate-delay="0"
-    rotation-per-second="12deg"
-    camera-orbit="0deg 45deg auto"
-    shadow-intensity="0.5">
-  </model-viewer>
-<button id="rotateButton" style="margin: 8px auto;">
-    Otomatik dönüşü durdur
-  </button>
+  <div id="viewer"></div>
+
+  <div id="controls">
+    <button id="rotateButton">
+      Otomatik dönüşü durdur
+    </button>
+
+    <button id="measureButton">
+      Ölçüleri göster
+    </button>
+  </div>
 
 </div>
 
@@ -145,13 +152,17 @@ button, .open {
   <div id="list">Modeller yükleniyor...</div>
 </div>
 
-<script>
+<script type="module">
+
+import * as THREE from "three";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { Reflector } from "three/addons/objects/Reflector.js";
 
 const API =
   "https://api.github.com/repos/3d-ev-modeli/3d-evler";
 
 const params = new URLSearchParams(location.search);
-
 const file = params.get("model");
 const villa = params.get("villa");
 
@@ -162,24 +173,18 @@ const list = document.getElementById("list");
 const floors = document.getElementById("floors");
 const propertyTitle = document.getElementById("propertyTitle");
 const status = document.getElementById("status");
-  
-const rotateButton = document.getElementById("rotateButton");
 
-function setRotation(active) {
-  viewer.autoRotate = active;
-  rotateButton.textContent = active
-    ? "Otomatik dönüşü durdur"
-    : "Otomatik dönüşü başlat";
-}
+const rotateButton =
+  document.getElementById("rotateButton");
 
-viewer.addEventListener("pointerdown", () => {
-  setRotation(false);
-});
+const measureButton =
+  document.getElementById("measureButton");
 
-rotateButton.addEventListener("click", () => {
-  setRotation(!viewer.autoRotate);
-});
-
+let scene, camera, renderer, controls, ground;
+let currentModel = null;
+let measurementObjects = [];
+let measurementsVisible = false;
+let loadID = 0;
 
 function safeName(name) {
   return typeof name === "string" &&
@@ -200,7 +205,8 @@ function niceName(name) {
     .replace(/\.glb$/i, "")
     .replace(/^\d+[-_ ]+/, "")
     .replace(/[-_]+/g, " ")
-    .replace(/(^|\s)\S/g, c => c.toLocaleUpperCase("tr"));
+    .replace(/(^|\s)\S/g,
+      c => c.toLocaleUpperCase("tr"));
 }
 
 function compareNames(a, b) {
@@ -231,17 +237,348 @@ function showStatus(message) {
   status.hidden = false;
 }
 
-viewer.addEventListener("load", () => {
-  status.hidden = true;
-});
+function resizeViewer() {
 
-viewer.addEventListener("error", () => {
-  showStatus("3D model yüklenemedi. Lütfen tekrar deneyin.");
-});
+  if (!renderer) return;
+
+  const width = Math.max(viewer.clientWidth, 1);
+  const height = Math.max(viewer.clientHeight, 1);
+
+  camera.aspect = width / height;
+  camera.updateProjectionMatrix();
+
+  renderer.setSize(width, height);
+
+}
+
+function setRotation(active) {
+
+  controls.autoRotate = active;
+
+  rotateButton.textContent = active
+    ? "Otomatik dönüşü durdur"
+    : "Otomatik dönüşü başlat";
+
+}
+
+function initViewer() {
+
+  if (renderer) return;
+
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0xffffff);
+
+  camera = new THREE.PerspectiveCamera(
+    40, 1, 0.01, 200
+  );
+
+  camera.position.set(0, 10, 10);
+
+  renderer = new THREE.WebGLRenderer({
+    antialias: true
+  });
+
+  renderer.setPixelRatio(
+    Math.min(devicePixelRatio, 2)
+  );
+
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+  viewer.appendChild(renderer.domElement);
+
+  scene.add(new THREE.HemisphereLight(
+    0xffffff, 0xaaaaaa, 2.8
+  ));
+
+  const light = new THREE.DirectionalLight(
+    0xffffff, 2
+  );
+
+  light.position.set(5, 10, 5);
+  light.castShadow = true;
+  scene.add(light);
+
+  ground = new Reflector(
+    new THREE.PlaneGeometry(200, 200),
+    {
+      color: 0xffffff,
+      textureWidth: 2048,
+      textureHeight: 2048
+    }
+  );
+
+  ground.rotation.x = -Math.PI / 2;
+  scene.add(ground);
+
+  ground.material.fragmentShader =
+    ground.material.fragmentShader.replace(
+      "blendOverlay( base.rgb, color )",
+      "mix(vec3(0.96), base.rgb, 0.13)"
+    );
+
+  ground.material.needsUpdate = true;
+
+  controls = new OrbitControls(
+    camera, renderer.domElement
+  );
+
+  controls.enableDamping = true;
+  controls.autoRotateSpeed = 2;
+
+  controls.maxPolarAngle = Math.PI / 2 - 0.02;
+
+  controls.addEventListener("start", () => {
+    setRotation(false);
+  });
+
+  renderer.domElement.addEventListener(
+    "pointerdown", () => {
+      setRotation(false);
+    }
+  );
+
+  rotateButton.onclick = () => {
+    setRotation(!controls.autoRotate);
+  };
+
+  measureButton.onclick = () => {
+
+    measurementsVisible = !measurementsVisible;
+
+    measurementObjects.forEach(obj => {
+      obj.visible = measurementsVisible;
+    });
+
+    measureButton.textContent = measurementsVisible
+      ? "Ölçüleri gizle"
+      : "Ölçüleri göster";
+
+  };
+
+  new ResizeObserver(resizeViewer).observe(viewer);
+  resizeViewer();
+
+  const clock = new THREE.Clock();
+
+  function animate() {
+    requestAnimationFrame(animate);
+
+    const delta = Math.min(clock.getDelta(), 0.1);
+
+    controls.update(delta);
+    renderer.render(scene, camera);
+  }
+
+  animate();
+
+}
+
+function hideMeasurements(model) {
+
+  measurementObjects = [];
+  measurementsVisible = false;
+  measureButton.textContent = "Ölçüleri göster";
+
+  model.traverse(obj => {
+
+    if (!obj.isMesh || !obj.material) return;
+
+    const m = obj.material;
+    if (!m.color || m.map) return;
+
+    const c = m.color;
+
+    const gray =
+      Math.abs(c.r - 1/3) < 0.001 &&
+      Math.abs(c.g - 1/3) < 0.001 &&
+      Math.abs(c.b - 1/3) < 0.001;
+
+    const white =
+      Math.abs(c.r - 1) < 0.001 &&
+      Math.abs(c.g - 1) < 0.001 &&
+      Math.abs(c.b - 1) < 0.001;
+
+    if (
+      (gray || white) &&
+      m.metalness === 0 &&
+      m.roughness === 0.5 &&
+      m.side === THREE.DoubleSide &&
+      !m.transmission
+    ) {
+      if (obj.visible) {
+        measurementObjects.push(obj);
+        obj.visible = false;
+      }
+    }
+
+  });
+
+}
+
+function disposeModel(model) {
+
+  const geometries = new Set();
+  const materials = new Set();
+  const textures = new Set();
+
+  model.traverse(obj => {
+
+    if (!obj.isMesh) return;
+
+    if (obj.geometry) {
+      geometries.add(obj.geometry);
+    }
+
+    const mats = Array.isArray(obj.material)
+      ? obj.material
+      : [obj.material];
+
+    mats.forEach(m => {
+
+      if (!m) return;
+
+      materials.add(m);
+
+      Object.values(m).forEach(value => {
+        if (value && value.isTexture) {
+          textures.add(value);
+        }
+      });
+
+    });
+
+  });
+
+  geometries.forEach(g => g.dispose());
+  textures.forEach(t => t.dispose());
+  materials.forEach(m => m.dispose());
+
+}
 
 function openModel(folder, name) {
+
+  initViewer();
+
+  const requestID = ++loadID;
+
+  setRotation(false);
   showStatus("3D model yükleniyor...");
-  viewer.src = modelPath(folder, name);
+
+  rotateButton.disabled = true;
+  measureButton.disabled = true;
+
+  if (currentModel) {
+    scene.remove(currentModel);
+    disposeModel(currentModel);
+    currentModel = null;
+  }
+
+  measurementObjects = [];
+
+  new GLTFLoader().load(
+
+    modelPath(folder, name),
+
+    gltf => {
+
+      if (requestID !== loadID) {
+        disposeModel(gltf.scene);
+        return;
+      }
+
+      const model = gltf.scene;
+
+      hideMeasurements(model);
+
+      const box = new THREE.Box3()
+        .setFromObject(model);
+
+      const center = box.getCenter(
+        new THREE.Vector3()
+      );
+
+      const size = box.getSize(
+        new THREE.Vector3()
+      );
+
+      model.position.x -= center.x;
+      model.position.z -= center.z;
+      model.position.y -= box.min.y;
+      model.position.y += 0.01;
+
+      scene.add(model);
+      currentModel = model;
+
+      status.hidden = true;
+      resizeViewer();
+
+      const d = Math.max(size.x, size.y, size.z, 0.1);
+
+      const fit = Math.max(
+        1, 0.85 / camera.aspect
+      );
+
+      const radius = size.length() / 2;
+      const verticalFov = THREE.MathUtils.degToRad(
+        camera.fov
+      );
+
+      const horizontalFov = 2 * Math.atan(
+        Math.tan(verticalFov / 2) * camera.aspect
+      );
+
+      const limitingFov = Math.min(
+        verticalFov, horizontalFov
+      );
+
+      const distance = Math.max(
+        d * 1.6 * Math.SQRT2 * fit,
+        radius / Math.sin(limitingFov / 2) * 1.1
+      );
+
+      const h = distance / Math.SQRT2;
+
+      controls.target.set(
+        0, size.y / 2, 0
+      );
+
+      camera.position.set(
+        0,
+        size.y / 2 + h,
+        h
+      );
+
+      camera.near = Math.max(d / 1000, 0.001);
+      camera.far = Math.max(200, distance * 10);
+      camera.updateProjectionMatrix();
+
+      controls.minDistance = d * 0.15;
+      controls.maxDistance = distance * 4;
+
+      controls.update();
+
+      rotateButton.disabled = false;
+
+      measureButton.disabled =
+        measurementObjects.length === 0;
+
+      setRotation(true);
+
+    },
+
+    undefined,
+
+    () => {
+      if (requestID === loadID) {
+        showStatus(
+          "3D model yüklenemedi. Lütfen tekrar deneyin."
+        );
+      }
+    }
+
+  );
+
 }
 
 async function openVilla(folder) {
@@ -295,11 +632,13 @@ async function openVilla(folder) {
           button.classList.add("active");
 
           openModel(folder, model.name);
+
         };
 
         floors.appendChild(button);
 
       });
+
     }
 
     openModel(folder, models[0].name);
@@ -307,6 +646,7 @@ async function openVilla(folder) {
   } catch {
     showStatus("Katlar alınamadı. Lütfen sayfayı yenileyin.");
   }
+
 }
 
 function createItem(name, type, count) {
@@ -362,6 +702,7 @@ function createItem(name, type, count) {
 
   item.append(title, info, open, copy);
   list.appendChild(item);
+
 }
 
 async function loadModels() {
@@ -403,6 +744,7 @@ async function loadModels() {
         }
 
         villas.get(folder).push(parts[1]);
+
       }
 
     });
@@ -425,7 +767,9 @@ async function loadModels() {
 
     ];
 
-    items.sort((a, b) => compareNames(a.name, b.name));
+    items.sort((a, b) =>
+      compareNames(a.name, b.name)
+    );
 
     items.forEach(item => {
       createItem(item.name, item.type, item.count);
@@ -441,6 +785,7 @@ async function loadModels() {
       "Modeller alınamadı. Lütfen daha sonra sayfayı yenileyin.";
 
   }
+
 }
 
 if (file && isGLB(file)) {
