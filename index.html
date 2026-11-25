@@ -853,6 +853,11 @@ model.traverse(obj => {
 
     obj.material = obj.material.clone();
     obj.material.map = texture;
+    obj.material.depthWrite = false;
+obj.material.polygonOffset = true;
+obj.material.polygonOffsetFactor = -8;
+obj.material.polygonOffsetUnits = -8;
+obj.renderOrder = 10;
     obj.material.needsUpdate = true;
 
   }
