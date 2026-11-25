@@ -9,7 +9,7 @@
 <style>
 body {
   margin: 0;
-  font-family: Arial, sans-serif;f
+  font-family: "Segoe UI", Arial, sans-serif;
   background: #f5f6f8;
 }
 
@@ -33,22 +33,9 @@ canvas {
   touch-action: none;
 }
 
-#floors, #controls {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 8px;
-  padding: 10px;
-  background: #f5f6f8;
-}
-
-
-
-
 #propertyTitle {
   text-align: center;
   padding: 18px 24px 8px;
-  font-family: "Segoe UI", Arial, sans-serif;
   font-size: 16px;
   font-weight: 600;
   letter-spacing: 0.2px;
@@ -59,10 +46,50 @@ canvas {
   overflow-wrap: anywhere;
 }
 
-#propertyTitle .ref {
+.ref {
   color: #c51b24;
 }
 
+#floors {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px;
+  background: white;
+}
+
+#footer {
+  text-align: center;
+  padding: 12px 15px 28px;
+  background: white;
+}
+
+.footer-line {
+  width: 45px;
+  height: 1px;
+  background: #aaaaaa;
+  margin: 0 auto 10px;
+}
+
+.footer-title {
+  font-size: 13px;
+  letter-spacing: 2px;
+  font-weight: 500;
+  color: #444444;
+}
+
+.footer-subtitle {
+  font-size: 11px;
+  color: #888888;
+  margin-top: 4px;
+}
+
+#panel {
+  max-width: 850px;
+  margin: 40px auto;
+  padding: 20px;
+}
 
 .item {
   background: white;
@@ -100,11 +127,6 @@ button, .open {
   color: white;
 }
 
-#controls button {
-  margin: 0;
-  font-size: 13px;
-}
-
 .info {
   color: #777;
   font-size: 13px;
@@ -132,33 +154,39 @@ button, .open {
 </script>
 
 </head>
+
 <body>
 
 <div id="tour" hidden>
 
-  
-<div id="propertyTitle"></div>
+  <div id="propertyTitle" hidden></div>
   <div id="floors" hidden></div>
   <div id="status" hidden></div>
 
   <div id="viewer"></div>
 
-  <div id="controls">
-    <button id="rotateButton">
-      Otomatik dönüşü durdur
-    </button>
+  <div id="footer">
+    <div class="footer-line"></div>
 
-    <button id="measureButton" hidden>
-      Ölçüleri göster
-    </button>
+    <div class="footer-title">
+      3D MİMARİ SUNUM
+    </div>
+
+    <div class="footer-subtitle">
+      360° İnteraktif Gayrimenkul Deneyimi
+    </div>
   </div>
 
 </div>
 
 <div id="panel" hidden>
+
   <h1>3D Ev Modelleri</h1>
+
   <p>Görüntülemek veya paylaşmak istediğiniz modeli seçin.</p>
+
   <div id="list">Modeller yükleniyor...</div>
+
 </div>
 
 <script type="module">
@@ -172,6 +200,7 @@ const API =
   "https://api.github.com/repos/3d-ev-modeli/3d-evler";
 
 const params = new URLSearchParams(location.search);
+
 const file = params.get("model");
 const villa = params.get("villa");
 
@@ -183,67 +212,153 @@ const floors = document.getElementById("floors");
 const propertyTitle = document.getElementById("propertyTitle");
 const status = document.getElementById("status");
 
-const rotateButton =
-  document.getElementById("rotateButton");
-
-const measureButton =
-  document.getElementById("measureButton");
-
 let scene, camera, renderer, controls, ground;
+
 let currentModel = null;
-let measurementObjects = [];
-let measurementsVisible = false;
 let loadID = 0;
 
+let baseDistance = 10;
+let cinematicTime = 0;
+let resumeTimer = null;
+
+let cinematicActive = false;
+let interacting = false;
+let transitionTime = 0;
+
+const clock = new THREE.Clock();
+
 function safeName(name) {
+
   return typeof name === "string" &&
     name.length > 0 &&
     name !== "." &&
     name !== ".." &&
     !name.includes("/") &&
     !name.includes("\\");
+
 }
 
 function isGLB(name) {
+
   return safeName(name) &&
     name.toLowerCase().endsWith(".glb");
+
 }
 
 function niceName(name) {
+
   return name
     .replace(/\.glb$/i, "")
     .replace(/^\d+[-_ ]+/, "")
     .replace(/[-_]+/g, " ")
+    .replace(/\s+/g, " ")
     .replace(/(^|\s)\S/g,
-      c => c.toLocaleUpperCase("tr"));
+      c => c.toLocaleUpperCase("tr"))
+    .trim();
+
+}
+
+function parseTitle(name) {
+
+  const clean = name
+    .replace(/\.glb$/i, "")
+    .trim();
+
+  const match = clean.match(
+    /^(\d+)\s*-\s*(.+)$/
+  );
+
+  if (!match) return null;
+
+  const parts = match[2].split(/\s+-\s+/);
+
+  return {
+    ref: match[1],
+    location: parts[0].trim(),
+    details: parts.slice(1).join(" ").trim()
+  };
+
+}
+
+function showTitle(name) {
+
+  propertyTitle.replaceChildren();
+
+  const data = parseTitle(name);
+
+  if (data) {
+
+    const ref = document.createElement("div");
+
+    ref.className = "ref";
+    ref.textContent = "Ref: " + data.ref;
+
+    propertyTitle.appendChild(ref);
+
+    const location = document.createElement("div");
+
+    location.textContent = niceName(data.location);
+
+    propertyTitle.appendChild(location);
+
+    if (data.details) {
+
+      const details = document.createElement("div");
+
+      details.textContent = niceName(data.details);
+
+      propertyTitle.appendChild(details);
+
+    }
+
+  } else {
+
+    propertyTitle.textContent = niceName(name);
+
+  }
+
+  propertyTitle.hidden = false;
+
 }
 
 function compareNames(a, b) {
+
   return a.localeCompare(b, "tr", {
     numeric: true,
     sensitivity: "base"
   });
+
 }
 
 async function getJSON(url) {
+
   const response = await fetch(url);
+
   if (!response.ok) throw new Error("API");
+
   return response.json();
+
 }
 
 function modelPath(folder, name) {
+
   if (folder) {
+
     return "./" +
       encodeURIComponent(folder) + "/" +
       encodeURIComponent(name);
+
   }
 
   return "./" + encodeURIComponent(name);
+
 }
 
 function showStatus(message) {
+
   status.textContent = message;
   status.hidden = false;
+
 }
 
 function resizeViewer() {
@@ -260,13 +375,34 @@ function resizeViewer() {
 
 }
 
-function setRotation(active) {
+function pauseCinematic() {
 
-  controls.autoRotate = active;
+  clearTimeout(resumeTimer);
 
-  rotateButton.textContent = active
-    ? "Otomatik dönüşü durdur"
-    : "Otomatik dönüşü başlat";
+  cinematicActive = false;
+
+  if (controls) {
+
+    controls.autoRotate = false;
+
+  }
+
+}
+
+function scheduleResume() {
+
+  clearTimeout(resumeTimer);
+
+  resumeTimer = setTimeout(() => {
+
+    if (currentModel && !interacting) {
+
+      cinematicActive = true;
+      transitionTime = 0;
+
+    }
+
+  }, 5000);
 
 }
 
@@ -275,6 +411,7 @@ function initViewer() {
   if (renderer) return;
 
   scene = new THREE.Scene();
+
   scene.background = new THREE.Color(0xffffff);
 
   camera = new THREE.PerspectiveCamera(
@@ -292,7 +429,9 @@ function initViewer() {
   );
 
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+  renderer.shadowMap.type =
+    THREE.PCFSoftShadowMap;
 
   viewer.appendChild(renderer.domElement);
 
@@ -306,6 +445,7 @@ function initViewer() {
 
   light.position.set(5, 10, 5);
   light.castShadow = true;
+
   scene.add(light);
 
   ground = new Reflector(
@@ -318,6 +458,7 @@ function initViewer() {
   );
 
   ground.rotation.x = -Math.PI / 2;
+
   scene.add(ground);
 
   ground.material.fragmentShader =
@@ -333,67 +474,146 @@ function initViewer() {
   );
 
   controls.enableDamping = true;
-  controls.autoRotateSpeed = 2;
+  controls.dampingFactor = 0.06;
 
-  controls.maxPolarAngle = Math.PI / 2 - 0.02;
+  controls.autoRotate = false;
+
+  controls.maxPolarAngle =
+    Math.PI / 2 - 0.02;
 
   controls.addEventListener("start", () => {
-    setRotation(false);
+
+    interacting = true;
+
+    pauseCinematic();
+
+  });
+
+  controls.addEventListener("end", () => {
+
+    interacting = false;
+
+    scheduleResume();
+
   });
 
   renderer.domElement.addEventListener(
     "pointerdown", () => {
-      setRotation(false);
+
+      interacting = true;
+
+      pauseCinematic();
+
     }
   );
 
-  rotateButton.onclick = () => {
-    setRotation(!controls.autoRotate);
-  };
+  window.addEventListener(
+    "pointerup", () => {
 
-  measureButton.onclick = () => {
+      if (!interacting) return;
 
-    measurementsVisible = !measurementsVisible;
+      interacting = false;
 
-    measurementObjects.forEach(obj => {
-      obj.visible = measurementsVisible;
-    });
+      scheduleResume();
 
-    measureButton.textContent = measurementsVisible
-      ? "Ölçüleri gizle"
-      : "Ölçüleri göster";
+    }
+  );
 
-  };
+  window.addEventListener(
+    "pointercancel", () => {
 
-  new ResizeObserver(resizeViewer).observe(viewer);
+      if (!interacting) return;
+
+      interacting = false;
+
+      scheduleResume();
+
+    }
+  );
+
+  new ResizeObserver(resizeViewer)
+    .observe(viewer);
+
   resizeViewer();
-
-  const clock = new THREE.Clock();
-
-  function animate() {
-    requestAnimationFrame(animate);
-
-    const delta = Math.min(clock.getDelta(), 0.1);
-
-    controls.update(delta);
-    renderer.render(scene, camera);
-  }
 
   animate();
 
 }
 
-function hideMeasurements(model) {
+function animate() {
 
-  measurementObjects = [];
-  measurementsVisible = false;
-  measureButton.textContent = "Ölçüleri göster";
+  requestAnimationFrame(animate);
+
+  const delta = Math.min(
+    clock.getDelta(), 0.1
+  );
+
+  if (cinematicActive && currentModel) {
+
+    cinematicTime += delta;
+    transitionTime += delta;
+
+    const orbit = new THREE.Spherical();
+
+    orbit.setFromVector3(
+      camera.position.clone()
+        .sub(controls.target)
+    );
+
+    const phase =
+      cinematicTime * Math.PI * 2 / 30;
+
+    const desiredAngle =
+      THREE.MathUtils.degToRad(
+        45 + 5 * Math.sin(phase)
+      );
+
+    const desiredDistance =
+      baseDistance *
+      (1 - 0.06 * (1 - Math.cos(phase)) / 2);
+
+    const smooth =
+      1 - Math.exp(-delta * 1.5);
+
+    const ramp = Math.min(
+      transitionTime / 1.5, 1
+    );
+
+    orbit.theta -=
+      delta * Math.PI * 2 / 30 * ramp;
+
+    orbit.phi = THREE.MathUtils.lerp(
+      orbit.phi,
+      desiredAngle,
+      smooth
+    );
+
+    orbit.radius = THREE.MathUtils.lerp(
+      orbit.radius,
+      desiredDistance,
+      smooth
+    );
+
+    camera.position.setFromSpherical(orbit);
+
+    camera.position.add(controls.target);
+
+  }
+
+  controls.update();
+
+  renderer.render(scene, camera);
+
+}
+
+function hideMeasurements(model) {
 
   model.traverse(obj => {
 
     if (!obj.isMesh || !obj.material) return;
 
     const m = obj.material;
+
     if (!m.color || m.map) return;
 
     const c = m.color;
@@ -415,10 +635,9 @@ function hideMeasurements(model) {
       m.side === THREE.DoubleSide &&
       !m.transmission
     ) {
-      if (obj.visible) {
-        measurementObjects.push(obj);
-        obj.visible = false;
-      }
+
+      obj.visible = false;
+
     }
 
   });
@@ -436,7 +655,9 @@ function disposeModel(model) {
     if (!obj.isMesh) return;
 
     if (obj.geometry) {
+
       geometries.add(obj.geometry);
+
     }
 
     const mats = Array.isArray(obj.material)
@@ -450,9 +671,13 @@ function disposeModel(model) {
       materials.add(m);
 
       Object.values(m).forEach(value => {
+
         if (value && value.isTexture) {
+
           textures.add(value);
+
         }
+
       });
 
     });
@@ -471,19 +696,21 @@ function openModel(folder, name) {
 
   const requestID = ++loadID;
 
-  setRotation(false);
+  pauseCinematic();
+
+  interacting = false;
+
   showStatus("3D model yükleniyor...");
 
-  rotateButton.disabled = true;
-  measureButton.disabled = true;
-
   if (currentModel) {
-    scene.remove(currentModel);
-    disposeModel(currentModel);
-    currentModel = null;
-  }
 
-  measurementObjects = [];
+    scene.remove(currentModel);
+
+    disposeModel(currentModel);
+
+    currentModel = null;
+
+  }
 
   new GLTFLoader().load(
 
@@ -492,8 +719,11 @@ function openModel(folder, name) {
     gltf => {
 
       if (requestID !== loadID) {
+
         disposeModel(gltf.scene);
+
         return;
+
       }
 
       const model = gltf.scene;
@@ -514,39 +744,50 @@ function openModel(folder, name) {
       model.position.x -= center.x;
       model.position.z -= center.z;
       model.position.y -= box.min.y;
+
       model.position.y += 0.01;
 
       scene.add(model);
+
       currentModel = model;
 
       status.hidden = true;
+
       resizeViewer();
 
-      const d = Math.max(size.x, size.y, size.z, 0.1);
+      const d = Math.max(
+        size.x, size.y, size.z, 0.1
+      );
 
       const fit = Math.max(
         1, 0.85 / camera.aspect
       );
 
       const radius = size.length() / 2;
-      const verticalFov = THREE.MathUtils.degToRad(
-        camera.fov
-      );
+
+      const verticalFov =
+        THREE.MathUtils.degToRad(camera.fov);
 
       const horizontalFov = 2 * Math.atan(
-        Math.tan(verticalFov / 2) * camera.aspect
+        Math.tan(verticalFov / 2) *
+        camera.aspect
       );
 
       const limitingFov = Math.min(
-        verticalFov, horizontalFov
+        verticalFov,
+        horizontalFov
       );
 
-      const distance = Math.max(
+      baseDistance = Math.max(
+
         d * 1.6 * Math.SQRT2 * fit,
-        radius / Math.sin(limitingFov / 2) * 1.1
+
+        radius /
+        Math.sin(limitingFov / 2) * 1.15
+
       );
 
-      const h = distance / Math.SQRT2;
+      const h = baseDistance / Math.SQRT2;
 
       controls.target.set(
         0, size.y / 2, 0
@@ -558,32 +799,45 @@ function openModel(folder, name) {
         h
       );
 
-      camera.near = Math.max(d / 1000, 0.001);
-      camera.far = Math.max(200, distance * 10);
+      camera.near = Math.max(
+        d / 1000, 0.001
+      );
+
+      camera.far = Math.max(
+        200, baseDistance * 10
+      );
+
       camera.updateProjectionMatrix();
 
       controls.minDistance = d * 0.15;
-      controls.maxDistance = distance * 4;
+
+      controls.maxDistance =
+        baseDistance * 4;
 
       controls.update();
 
-      rotateButton.disabled = false;
+      clearTimeout(resumeTimer);
 
-      measureButton.disabled =
-        measurementObjects.length === 0;
+      cinematicTime = 0;
 
-      setRotation(true);
+      transitionTime = 1.5;
+
+      cinematicActive = true;
 
     },
 
     undefined,
 
     () => {
+
       if (requestID === loadID) {
+
         showStatus(
           "3D model yüklenemedi. Lütfen tekrar deneyin."
         );
+
       }
+
     }
 
   );
@@ -593,27 +847,42 @@ function openModel(folder, name) {
 async function openVilla(folder) {
 
   tour.hidden = false;
+
+  showTitle(folder);
+
   showStatus("Katlar yükleniyor...");
 
   try {
 
     const files = await getJSON(
+
       API + "/contents/" +
+
       encodeURIComponent(folder) +
+
       "?ref=main"
+
     );
 
     const models = files
-      .filter(f => f.type === "file" && isGLB(f.name))
-      .sort((a, b) => compareNames(a.name, b.name));
+
+      .filter(f =>
+        f.type === "file" && isGLB(f.name)
+      )
+
+      .sort((a, b) =>
+        compareNames(a.name, b.name)
+      );
 
     if (!models.length) {
-      showStatus("Bu gayrimenkulde henüz model bulunmuyor.");
-      return;
-    }
 
-    propertyTitle.textContent = niceName(folder);
-    propertyTitle.hidden = false;
+      showStatus(
+        "Bu gayrimenkulde henüz model bulunmuyor."
+      );
+
+      return;
+
+    }
 
     if (models.length > 1) {
 
@@ -621,22 +890,32 @@ async function openVilla(folder) {
 
       models.forEach((model, index) => {
 
-        const button = document.createElement("button");
+        const button =
+          document.createElement("button");
 
         button.className = "floor-button";
-        button.textContent = niceName(model.name);
+
+        button.textContent =
+          niceName(model.name);
 
         if (index === 0) {
+
           button.classList.add("active");
+
         }
 
         button.onclick = () => {
 
-          if (button.classList.contains("active")) return;
+          if (
+            button.classList.contains("active")
+          ) return;
 
-          floors.querySelectorAll("button").forEach(b => {
-            b.classList.remove("active");
-          });
+          floors.querySelectorAll("button")
+            .forEach(b => {
+
+              b.classList.remove("active");
+
+            });
 
           button.classList.add("active");
 
@@ -653,7 +932,11 @@ async function openVilla(folder) {
     openModel(folder, models[0].name);
 
   } catch {
-    showStatus("Katlar alınamadı. Lütfen sayfayı yenileyin.");
+
+    showStatus(
+      "Katlar alınamadı. Lütfen sayfayı yenileyin."
+    );
+
   }
 
 }
@@ -663,33 +946,48 @@ function createItem(name, type, count) {
   const url = new URL("./", location.href);
 
   if (type === "villa") {
+
     url.searchParams.set("villa", name);
+
   } else {
+
     url.searchParams.set("model", name);
+
   }
 
   const item = document.createElement("div");
+
   item.className = "item";
 
   const title = document.createElement("strong");
- 
-const refMatch = name.match(/^(\d+)\s*-\s*/);
 
-if (refMatch) {
-  const ref = document.createElement("span");
-  ref.textContent = "Ref: " + refMatch[1] + " ";
-  ref.style.color = "#c51b24";
-
-  title.appendChild(ref);
-  title.appendChild(
-    document.createTextNode(niceName(name))
+  const refMatch = name.match(
+    /^(\d+)\s*-\s*/
   );
-} else {
-  title.textContent = niceName(name);
-}
 
+  if (refMatch) {
+
+    const ref = document.createElement("span");
+
+    ref.className = "ref";
+
+    ref.textContent =
+      "Ref: " + refMatch[1] + " ";
+
+    title.appendChild(ref);
+
+    title.appendChild(
+      document.createTextNode(niceName(name))
+    );
+
+  } else {
+
+    title.textContent = niceName(name);
+
+  }
 
   const info = document.createElement("div");
+
   info.className = "info";
 
   info.textContent = count > 1
@@ -697,6 +995,7 @@ if (refMatch) {
     : "Tek kat";
 
   const open = document.createElement("a");
+
   open.className = "open";
   open.href = url.href;
   open.target = "_blank";
@@ -704,6 +1003,7 @@ if (refMatch) {
   open.textContent = "Görüntüle";
 
   const copy = document.createElement("button");
+
   copy.textContent = "Bağlantıyı kopyala";
 
   copy.onclick = async () => {
@@ -715,16 +1015,21 @@ if (refMatch) {
       copy.textContent = "Kopyalandı ✓";
 
       setTimeout(() => {
+
         copy.textContent = "Bağlantıyı kopyala";
+
       }, 2000);
 
     } catch {
+
       prompt("Bağlantıyı kopyalayın:", url.href);
+
     }
 
   };
 
   item.append(title, info, open, copy);
+
   list.appendChild(item);
 
 }
@@ -734,10 +1039,16 @@ async function loadModels() {
   try {
 
     const data = await getJSON(
+
       API + "/git/trees/main?recursive=1"
+
     );
 
-    if (data.truncated) throw new Error("Liste");
+    if (data.truncated) {
+
+      throw new Error("Liste");
+
+    }
 
     const rootModels = [];
     const villas = new Map();
@@ -749,22 +1060,33 @@ async function loadModels() {
       const parts = entry.path.split("/");
 
       if (
+
         parts.length === 1 &&
+
         isGLB(parts[0])
+
       ) {
+
         rootModels.push(parts[0]);
+
       }
 
       if (
+
         parts.length === 2 &&
+
         safeName(parts[0]) &&
+
         isGLB(parts[1])
+
       ) {
 
         const folder = parts[0];
 
         if (!villas.has(folder)) {
+
           villas.set(folder, []);
+
         }
 
         villas.get(folder).push(parts[1]);
@@ -778,29 +1100,49 @@ async function loadModels() {
     const items = [
 
       ...rootModels.map(name => ({
+
         name,
+
         type: "model",
+
         count: 1
+
       })),
 
-      ...Array.from(villas.entries()).map(([name, models]) => ({
-        name,
-        type: "villa",
-        count: models.length
-      }))
+      ...Array.from(villas.entries())
+        .map(([name, models]) => ({
+
+          name,
+
+          type: "villa",
+
+          count: models.length
+
+        }))
 
     ];
 
     items.sort((a, b) =>
+
       compareNames(a.name, b.name)
+
     );
 
     items.forEach(item => {
-      createItem(item.name, item.type, item.count);
+
+      createItem(
+        item.name,
+        item.type,
+        item.count
+      );
+
     });
 
     if (!items.length) {
-      list.textContent = "Henüz model yüklenmemiş.";
+
+      list.textContent =
+        "Henüz model yüklenmemiş.";
+
     }
 
   } catch {
@@ -813,34 +1155,11 @@ async function loadModels() {
 }
 
 if (file && isGLB(file)) {
-  
-const titleName = file.replace(/\.glb$/i, "");
-const parts = titleName.split(/\s+-\s+/);
-const first = parts[0].match(/^(\d+)\s*-\s*(.+)$/);
-
-if (first && parts.length >= 2) {
-  propertyTitle.replaceChildren();
-
-  const lines = [
-    "Ref: " + first[1],
-    first[2],
-    parts.slice(1).join(" ")
-  ];
-
-  lines.forEach((line, index) => {
-    const div = document.createElement("div");
-    div.textContent = line;
-    if (index === 0) div.className = "ref";
-    propertyTitle.appendChild(div);
-  });
-} else {
-  propertyTitle.textContent = niceName(file);
-}
-
-  propertyTitle.hidden = false;
-
 
   tour.hidden = false;
+
+  showTitle(file);
+
   openModel(null, file);
 
 } else if (villa && safeName(villa)) {
@@ -850,6 +1169,7 @@ if (first && parts.length >= 2) {
 } else {
 
   panel.hidden = false;
+
   loadModels();
 
 }
