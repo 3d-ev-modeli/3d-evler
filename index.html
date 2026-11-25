@@ -42,13 +42,32 @@ canvas {
   text-align: center;
   padding: 18px 24px 8px;
   font-size: 16px;
-  font-weight: 600;
-  letter-spacing: 0.2px;
+  font-weight: 400;
+  letter-spacing: 0.8px;
   line-height: 1.15;
-  color: #363636;
+  color: #444444;
   background: white;
-  text-shadow: 0 1px 1px #bbbbbb;
+  text-shadow: none;
   overflow-wrap: anywhere;
+}
+
+#propertyTitle div:nth-child(2) {
+  font-size: 16px;
+  font-weight: 400;
+  text-transform: uppercase;
+}
+
+#propertyTitle div:nth-child(3) {
+  font-size: 11px;
+  font-weight: 400;
+  color: #888888;
+  letter-spacing: 0.3px;
+  margin-top: 1px;
+}
+
+#propertyTitle .ref {
+  font-size: 11px;
+  font-weight: 500;
 }
 
 .ref {
@@ -289,12 +308,21 @@ function parseTitle(name) {
 
  const parts = match[2].split(/\s*-\s*/);
 
-  return {
-    ref: match[1],
-    location: parts[0].trim(),
-    details: parts.slice(1).join(" ").trim()
-  };
+let location = parts[0].trim();
+let details = parts.slice(1).join(" ").trim();
 
+if (parts.length >= 3) {
+  location = parts.slice(0, 2).join(" - ");
+  details = parts.slice(2).join(" ").trim();
+} else {
+  location = location.replace(/^(\S+)\s+(.+)$/, "$1 - $2");
+}
+
+return {
+  ref: match[1],
+  location: location,
+  details: details
+};
 }
 
 function showTitle(name) {
@@ -314,7 +342,7 @@ function showTitle(name) {
 
     const location = document.createElement("div");
 
-    location.textContent = niceName(data.location);
+    location.textContent = data.location.toLocaleUpperCase("tr-TR");
 
     propertyTitle.appendChild(location);
 
