@@ -133,50 +133,35 @@ new GLTFLoader().load(
     const model = gltf.scene;
     
 
-if (file === "Untitled.glb") {
-  model.traverse(obj => {
-    if (!obj.isMesh || !obj.material) return;
 
-    const match = (obj.material.name || "")
-      .match(/^Material_(\d+)$/);
+model.traverse(obj => {
+  if (!obj.isMesh || !obj.material) return;
 
-    if (!match) return;
+  const m = obj.material;
+  if (!m.color || m.map) return;
 
-    const n = Number(match[1]);
+  const c = m.color;
 
-    if (
-      (n >= 16 && n <= 33) ||
-      (n >= 35 && n <= 40) ||
-      (n >= 43 && n <= 54)
-    ) {
-      obj.visible = false;
-    }
-  });
-}
+  const gray =
+    Math.abs(c.r - 1/3) < 0.001 &&
+    Math.abs(c.g - 1/3) < 0.001 &&
+    Math.abs(c.b - 1/3) < 0.001;
 
+  const white =
+    Math.abs(c.r - 1) < 0.001 &&
+    Math.abs(c.g - 1) < 0.001 &&
+    Math.abs(c.b - 1) < 0.001;
 
-
-    
-if (file === "umut sitesi.glb") {
-  model.traverse(obj => {
-    if (obj.isMesh && obj.material) {
-      const name = obj.material.name || "";
-      const match = name.match(/^Material_(\d+)$/);
-
-      if (match) {
-        const n = Number(match[1]);
-
-        if (
-          (n >= 46 && n <= 85) ||
-          (n >= 90 && n <= 98) ||
-          (n >= 102 && n <= 132)
-        ) {
-          obj.visible = false;
-        }
-      }
-    }
-  });
-}
+  if (
+    (gray || white) &&
+    m.metalness === 0 &&
+    m.roughness === 0.5 &&
+    m.side === THREE.DoubleSide &&
+    !m.transmission
+  ) {
+    obj.visible = false;
+  }
+});
 
 
     const box = new THREE.Box3().setFromObject(model);
