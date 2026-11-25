@@ -1028,6 +1028,7 @@ async function openVilla(folder) {
 function createItem(name, type, count) {
 
   const url = new URL("./", location.href);
+  url.searchParams.set("v", "17005");
 
   if (type === "villa") {
 
