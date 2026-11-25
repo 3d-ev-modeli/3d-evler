@@ -898,6 +898,9 @@ model.traverse(obj => {
 
 grass.position.y = -s * 0.0075 + 0.009;
   grass.receiveShadow = true;
+grass.material.polygonOffset = true;
+grass.material.polygonOffsetFactor = -4;
+grass.material.polygonOffsetUnits = -4;
   garden.add(grass);
 
   function addTree(x, z) {
