@@ -878,6 +878,7 @@ model.traverse(obj => {
       model.position.y += 0.01;
 
       scene.add(model);
+      ground.visible = !(folder && /zemin/i.test(name));
       if (folder && /zemin/i.test(name)) {
 
   const garden = new THREE.Group();
