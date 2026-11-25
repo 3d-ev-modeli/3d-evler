@@ -270,7 +270,7 @@ function parseTitle(name) {
 
   if (!match) return null;
 
-  const parts = match[2].split(/\s+-\s+/);
+ const parts = match[2].split(/\s*-\s*/);
 
   return {
     ref: match[1],
