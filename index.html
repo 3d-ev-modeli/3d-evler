@@ -672,7 +672,22 @@ function createItem(name, type, count) {
   item.className = "item";
 
   const title = document.createElement("strong");
+ 
+const refMatch = name.match(/^(\d+)\s*-\s*/);
+
+if (refMatch) {
+  const ref = document.createElement("span");
+  ref.textContent = "Ref: " + refMatch[1] + " ";
+  ref.style.color = "#c51b24";
+
+  title.appendChild(ref);
+  title.appendChild(
+    document.createTextNode(niceName(name))
+  );
+} else {
   title.textContent = niceName(name);
+}
+
 
   const info = document.createElement("div");
   info.className = "info";
