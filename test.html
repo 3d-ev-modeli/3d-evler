@@ -123,7 +123,7 @@ controls.addEventListener("start", () => {
 });
 
 const params = new URLSearchParams(location.search);
-const file = params.get("model") || "Your_First_Scan.glb";
+const file = params.get("model") || "007-Beylikdüzü Adnan Kahveci - 3+1 Daire.glb";
 
 new GLTFLoader().load(
   "./" + encodeURIComponent(file),
