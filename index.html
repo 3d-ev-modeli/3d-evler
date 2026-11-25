@@ -121,13 +121,20 @@ button, .open {
 
   <div id="status" hidden></div>
 
+  
   <model-viewer
     id="viewer"
     camera-controls
     touch-action="pan-y"
     auto-rotate
+    auto-rotate-delay="0"
+    rotation-per-second="12deg"
+    camera-orbit="0deg 45deg auto"
     shadow-intensity="0.5">
   </model-viewer>
+<button id="rotateButton" style="margin: 8px auto;">
+    Otomatik dönüşü durdur
+  </button>
 
 </div>
 
@@ -154,6 +161,24 @@ const list = document.getElementById("list");
 const floors = document.getElementById("floors");
 const propertyTitle = document.getElementById("propertyTitle");
 const status = document.getElementById("status");
+  
+const rotateButton = document.getElementById("rotateButton");
+
+function setRotation(active) {
+  viewer.autoRotate = active;
+  rotateButton.textContent = active
+    ? "Otomatik dönüşü durdur"
+    : "Otomatik dönüşü başlat";
+}
+
+viewer.addEventListener("pointerdown", () => {
+  setRotation(false);
+});
+
+rotateButton.addEventListener("click", () => {
+  setRotation(!viewer.autoRotate);
+});
+
 
 function safeName(name) {
   return typeof name === "string" &&
