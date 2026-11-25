@@ -565,12 +565,10 @@ function animate() {
 
     const desiredAngle =
       THREE.MathUtils.degToRad(
-        45 + 15 * Math.sin(phase)
+        45 * Math.sin(phase)
       );
 
-    const desiredDistance =
-      baseDistance *
-      (1 - 0.12 * (1 - Math.cos(phase)) / 2);
+    const desiredDistance = baseDistance;
 
     const smooth =
       1 - Math.exp(-delta * 1.5);
