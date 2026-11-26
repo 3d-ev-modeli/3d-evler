@@ -209,6 +209,8 @@ button, .open {
   font-size: 12px;
 }
 
+#panoramaButtons { display: none !important; }
+
 #musicToggle.is-playing {
   background: #e9f4ed;
   color: #176b43;
@@ -628,7 +630,7 @@ function openPanorama(pano) {
   if (!pano || !pano.url) return;
   closePanorama();
   activePanorama = pano;
-  panoTitle.textContent = pano.title || "360° Görünüm";
+  panoTitle.textContent = "360° Görünüm";
   panoMessage.textContent = "360° fotoğraf yükleniyor…";
   panoMessage.hidden = false;
   panoOverlay.hidden = false;
