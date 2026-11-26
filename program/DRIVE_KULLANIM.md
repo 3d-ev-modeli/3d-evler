@@ -69,6 +69,10 @@ Mevcut Drive dosyasını “Yeni sürüm yükle” ile değiştirmek dosya kimli
 - Paylaşım sayfası adresi sunum açılırken değişmez. WhatsApp önizlemesinin oluşturulması ayrıca WhatsApp'ın bağlantıyı yüklemesine bağlıdır.
 - Google Drive anahtarı veya Pages ayarı eksikse kurulum tamamlanmış sayılmaz. Bir gerçek klasör aktarımı ve yayın başarıyla sonuçlanmadan sistemi çalışır kabul etmeyin.
 
+## Portföyü silme
+
+GitHub → Actions → Portföyü sil → Run workflow açın. Branch olarak main seçin. Silinecek Ref numarasını hem reference hem confirmation alanına aynı şekilde, baştaki sıfırlarla yazın (ör. 057). İşlem seçilen portföyün kaydını, modellerini, kapaklarını, müziklerini, 360 dosyalarını ve paylaşım sayfalarını siteden kaldırır ve siteyi yeniden yayınlar. Başka bir portföy aynı varlığı kullanıyorsa inceleme için durur. Drive dosyaları ve program kodu silinmez. Önceki dosyalar Git geçmişinde kalır. Bu işlem için Google API anahtarı gerekmez.
+
 ## Kaynaklar
 
 - Google'ın açık klasörleri API anahtarıyla listeleme belgesi: https://developers.google.com/workspace/drive/api/guides/search-files

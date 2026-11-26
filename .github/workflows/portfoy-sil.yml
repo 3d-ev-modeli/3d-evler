@@ -1,0 +1,60 @@
+name: Portföyü sil
+on:
+  workflow_dispatch:
+    inputs:
+      reference:
+        description: 'Silinecek portföyün Ref numarası (ör. 057)'
+        required: true
+        type: string
+      confirmation:
+        description: 'Onay için AYNI Ref numarasını tekrar yazın'
+        required: true
+        type: string
+concurrency:
+  group: portfolio-pages-main
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  delete-and-publish:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r program/tools/requirements.txt
+      - run: python -m unittest discover -s program/tests -v
+      - name: Onaylanan portföyü kaldır
+        env:
+          PORTFOLIO_REF: ${{ inputs.reference }}
+          PORTFOLIO_CONFIRM: ${{ inputs.confirmation }}
+        run: python program/tools/delete_portfolio.py --ref "$PORTFOLIO_REF" --confirm "$PORTFOLIO_CONFIRM"
+      - name: Silme işlemini kaydet
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A -- program
+          git commit -m 'Remove confirmed portfolio from site'
+          git pull --rebase origin main
+          git push origin HEAD:main
+      - run: python program/tools/prepare_site.py
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+      - name: Siteyi yayınla
+        id: deployment
+        uses: actions/deploy-pages@v4
