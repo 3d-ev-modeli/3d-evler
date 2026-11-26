@@ -161,7 +161,7 @@ def cover(image, ref, title, font_path):
     result.paste(image, (0, 0))
     draw = ImageDraw.Draw(result)
     badge_font = ImageFont.truetype(font_path, max(24, round(44 * scale)))
-    title_size = max(24, round(49 * scale))
+    title_size = max(24, round(34 * scale))
     title_font = ImageFont.truetype(font_path, title_size)
     while draw.textlength(title, font=title_font) > width - 48 and title_size > 16:
         title_size -= 1
