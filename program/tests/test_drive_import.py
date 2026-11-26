@@ -120,6 +120,19 @@ class ImportTests(unittest.TestCase):
             self.prepare()
         self.assertEqual(self.config, original)
 
+    def test_single_floor_apartment_with_root_model_and_photos(self):
+        self.drive.root["name"] = "007-Beylikdüzü 3+1 Daire"
+        self.drive.items["folder000000"] = [item for item in self.drive.items["folder000000"] if item["id"] != "glbfolder000"]
+        self.drive.items["folder000000"].append(file("model000000", "daire.glb"))
+        self.drive.items["photofolder0"] = [file("pano0000000", "salon.jpg")]
+        pending, result = self.prepare(location="Beylikdüzü", details="3+1 Daire")
+        record = json.loads(pending["program/config/portfolios.json"])["villas"]["ref-007"]
+        self.assertEqual(result["models"], 1)
+        self.assertEqual(result["photos360"], 1)
+        self.assertEqual(list(record["floors"]), ["daire.glb"])
+        self.assertEqual(record["details"], "3+1 Daire")
+        self.assertIn("program/ref-007/daire.glb", pending)
+
     def test_bad_music(self):
         self.drive.data["music000000"] = b"<html>not an mp3</html>"
         with self.assertRaises(module.ImportError_):

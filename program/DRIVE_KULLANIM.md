@@ -36,6 +36,10 @@ Kapağı kapak.jpg, kapak.png veya cover.jpg olarak adlandırın. Ana klasörde 
 
 GLB dosyaları tüm dokularını içinde barındırmalıdır. Her model en fazla 90 MB, MP3 60 MB, kapak 30 MB, 360 kaynak fotoğrafı 40 MB; toplam aktarım en fazla 400 MB olabilir. Normal fotoğraflar bu aşamada galeriye alınmaz. 360 fotoğrafları equirectangular 2:1 olmalıdır; diğer oranlar uyarıyla atlanır.
 
+## Tek katlı daire
+
+Tek katlı dairede yalnızca bir GLB yeterlidir. daire.glb dosyasını glb/ klasörüne veya portföy ana klasörüne koyabilirsiniz. 360 fotoğrafları foto/ klasörüne doğrudan koyabilirsiniz; ayrıca kat klasörü gerekmez. İşlemde konum ve detay alanına örneğin Beylikdüzü ve 3+1 Daire yazın. Tek model varsa görüntüleyicide kat düğmeleri görünmez. Kapak, müzik ve işaret eşleştirme işlemleri aynı şekilde çalışır.
+
 ## Aktarımı başlatma
 
 1. GitHub → Actions → Portföyü Drive'dan aktar → Run workflow.
