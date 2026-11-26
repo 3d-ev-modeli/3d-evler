@@ -211,6 +211,13 @@ button, .open {
 
 #panoramaButtons { display: none !important; }
 
+#musicControls { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 8px; }
+#musicVolumeLabel { display: flex; align-items: center; gap: 5px; font-size: 12px; color: #555; }
+#musicVolume { width: 80px; min-height: 32px; accent-color: #176b43; }
+#musicToggle { min-height: 36px; min-width: 36px; }
+#musicToggle:focus-visible, #musicVolume:focus-visible { outline: 2px solid #176b43; outline-offset: 3px; }
+#musicMessage { flex-basis: 100%; text-align: center; font-size: 12px; color: #555; }
+#musicMessage:empty { display: none; }
 #musicToggle.is-playing {
   background: #e9f4ed;
   color: #176b43;
@@ -312,7 +319,11 @@ button, .open {
   <div id="floors" hidden></div>
   <div id="tourActions">
     <div id="panoramaButtons" hidden></div>
-    <button id="musicToggle" type="button" hidden>Müziği başlat</button>
+    <div id="musicControls" hidden role="group" aria-label="Portföy müziği">
+      <button id="musicToggle" type="button" aria-label="Müziği başlat" aria-pressed="false">▶ Müziği başlat</button>
+      <label id="musicVolumeLabel">Ses <input id="musicVolume" type="range" min="0" max="1" step="0.01" value="0.22" aria-label="Müzik ses seviyesi"></label>
+      <span id="musicMessage" role="status" aria-live="polite"></span>
+    </div>
   </div>
   <div id="status" hidden></div>
 
@@ -394,6 +405,9 @@ const status = document.getElementById("status");
 const panoramaButtons = document.getElementById("panoramaButtons");
 const musicToggle = document.getElementById("musicToggle");
 const backgroundMusic = document.getElementById("backgroundMusic");
+const musicControls = document.getElementById("musicControls");
+const musicVolume = document.getElementById("musicVolume");
+const musicMessage = document.getElementById("musicMessage");
 const panoOverlay = document.getElementById("panoOverlay");
 const panoCanvas = document.getElementById("panoCanvas");
 const panoTitle = document.getElementById("panoTitle");
@@ -578,44 +592,85 @@ function floorLabel(name) {
   return niceName(name);
 }
 
+let musicRequest = 0;
+function musicUrl(value) {
+  if (typeof value !== "string" || !value.trim()) return "";
+  try {
+    const url = new URL(value.trim(), location.href);
+    if (!["https:", "http:"].includes(url.protocol)) return "";
+    if (url.hostname === "drive.google.com") {
+      const id = url.pathname.match(/^\/file\/d\/([^/]+)/)?.[1] || url.searchParams.get("id");
+      if (id) {
+        const direct = new URL("https://drive.google.com/uc");
+        direct.searchParams.set("export", "download");
+        direct.searchParams.set("id", id);
+        const resourceKey = url.searchParams.get("resourcekey");
+        if (resourceKey) direct.searchParams.set("resourcekey", resourceKey);
+        return direct.href;
+      }
+    }
+    return url.href;
+  } catch { return ""; }
+}
+function syncMusicControl() {
+  const playing = !backgroundMusic.paused;
+  musicToggle.textContent = playing ? "Ⅱ" : "▶ Müziği başlat";
+  musicToggle.setAttribute("aria-label", playing ? "Müziği duraklat" : "Müziği başlat");
+  musicToggle.setAttribute("aria-pressed", String(playing));
+  musicToggle.classList.toggle("is-playing", playing);
+}
+async function startMusic() {
+  const request = ++musicRequest;
+  musicMessage.textContent = "";
+  try {
+    await backgroundMusic.play();
+    if (request === musicRequest) syncMusicControl();
+  } catch (error) {
+    if (request !== musicRequest) return;
+    syncMusicControl();
+    musicMessage.textContent = error.name === "NotAllowedError"
+      ? "Müziği dinlemek için ▶ düğmesine dokunun."
+      : "Müzik yüklenemedi. MP3 bağlantısını ve Drive paylaşım iznini kontrol edin.";
+  }
+}
 function applyMusic(folder, name) {
-  const cfg = getPortfolioConfig(folder, name);
-  const url = cfg.musicUrl || appConfig.musicUrl || "";
+  // Only this portfolio (or its floor) supplies the track; never use a shared fallback.
+  const url = musicUrl(getPortfolioConfig(folder, name).musicUrl);
+  musicControls.hidden = !url;
+  if (backgroundMusic.dataset.url === url) return; // Keep playback/pause across floors.
+  ++musicRequest;
+  backgroundMusic.pause();
+  backgroundMusic.dataset.url = url;
+  musicMessage.textContent = "";
   if (!url) {
-    musicToggle.hidden = true;
-    backgroundMusic.pause();
     backgroundMusic.removeAttribute("src");
     backgroundMusic.load();
-    musicToggle.classList.remove("is-playing");
-    musicToggle.textContent = "Müziği başlat";
+    syncMusicControl();
     return;
   }
-  if (backgroundMusic.dataset.url !== url) {
-    backgroundMusic.pause();
-    backgroundMusic.src = url;
-    backgroundMusic.dataset.url = url;
-    backgroundMusic.volume = 0.22;
-    musicToggle.classList.remove("is-playing");
-    musicToggle.textContent = "Müziği başlat";
-  }
-  musicToggle.hidden = false;
+  backgroundMusic.src = url;
+  backgroundMusic.loop = true;
+  backgroundMusic.volume = Number(musicVolume.value);
+  syncMusicControl();
+  void startMusic();
 }
-
-musicToggle.addEventListener("click", async () => {
-  if (backgroundMusic.paused) {
-    try {
-      await backgroundMusic.play();
-      musicToggle.textContent = "Müziği duraklat";
-      musicToggle.classList.add("is-playing");
-    } catch (error) {
-      musicToggle.textContent = "Müzik açılamadı";
-      console.warn("Müzik oynatılamadı. Dosya yolu ve formatını kontrol edin.", error);
-    }
-  } else {
+musicToggle.addEventListener("click", () => {
+  if (backgroundMusic.paused) void startMusic();
+  else {
+    ++musicRequest;
     backgroundMusic.pause();
-    musicToggle.textContent = "Müziği başlat";
-    musicToggle.classList.remove("is-playing");
+    syncMusicControl();
   }
+});
+musicVolume.addEventListener("input", () => {
+  backgroundMusic.volume = Number(musicVolume.value);
+});
+backgroundMusic.addEventListener("play", syncMusicControl);
+backgroundMusic.addEventListener("pause", syncMusicControl);
+backgroundMusic.addEventListener("error", () => {
+  if (!backgroundMusic.dataset.url) return;
+  syncMusicControl();
+  musicMessage.textContent = "Müzik yüklenemedi. MP3 bağlantısını ve Drive paylaşım iznini kontrol edin.";
 });
 
 function closePanorama() {
