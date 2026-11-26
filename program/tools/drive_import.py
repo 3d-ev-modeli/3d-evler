@@ -172,13 +172,22 @@ def cover(image, ref, title, font_path):
     x, y = max(14, round(28 * scale)), max(14, round(28 * scale))
     badge_height = max(52, round(78 * scale))
     draw.rounded_rectangle((x, y, x + badge_width, y + badge_height), radius=9, fill="#c51b24")
-    draw.text((x + badge_width / 2, y + badge_height / 2), badge, font=badge_font, anchor="mm", fill="white")
+    draw.text((x + badge_width / 2, y + badge_height / 2 + 4 * scale), badge, font=badge_font, anchor="mm", fill="white")
     tag_font = badge_font
     tag_width = draw.textlength("3D", font=tag_font) + 38 * scale
     tag_height = badge_height
     tag_x = width - x - tag_width
-    draw.rounded_rectangle((tag_x, y, width - x, y + tag_height), radius=9, fill="#202d3d")
+    draw.rounded_rectangle((tag_x, y, width - x, y + tag_height), radius=9, fill="#078fa9")
     draw.text((tag_x + tag_width / 2, y + tag_height / 2), "3D", font=tag_font, anchor="mm", fill="white")
+    logo_font = ImageFont.truetype(caption_font_path, max(18, round(28 * scale)))
+    logo_width = max(tag_width, draw.textlength("360°", font=logo_font) + 24 * scale)
+    logo_height = max(36, round(54 * scale))
+    logo_right = width - x
+    logo_top = y + tag_height + 12 * scale
+    draw.rounded_rectangle((logo_right - logo_width, logo_top, logo_right, logo_top + logo_height),
+                           radius=round(logo_height / 2), fill="#078fa9", outline="white", width=max(1, round(2 * scale)))
+    draw.text((logo_right - logo_width / 2, logo_top + logo_height / 2), "360°",
+              font=logo_font, anchor="mm", fill="white")
     draw.text((x, height + band / 2), title, font=title_font, anchor="lm", fill="#292929")
     output = io.BytesIO()
     for quality in (82, 74, 65, 55):
