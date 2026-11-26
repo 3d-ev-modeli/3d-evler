@@ -177,7 +177,7 @@ def cover(image, ref, title, font_path):
     tag_width = draw.textlength("3D", font=tag_font) + 38 * scale
     tag_height = badge_height
     tag_x = width - x - tag_width
-    draw.rounded_rectangle((tag_x, y, width - x, y + tag_height), radius=9, fill="#ff7900")
+    draw.rounded_rectangle((tag_x, y, width - x, y + tag_height), radius=9, fill="#ff4f1f")
     draw.text((tag_x + tag_width / 2, y + tag_height / 2), "3D", font=tag_font, anchor="mm", fill="white")
     logo_font = ImageFont.truetype(caption_font_path, max(18, round(28 * scale)))
     logo_width = max(tag_width, draw.textlength("360°", font=logo_font) + 24 * scale)
