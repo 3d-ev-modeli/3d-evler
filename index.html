@@ -623,12 +623,13 @@ function closePanorama() {
   activePanorama = null;
   if (panoAnimationFrame) cancelAnimationFrame(panoAnimationFrame);
   panoAnimationFrame = 0;
-  if (panoRenderer && panoRenderer.domElement) {
-    if (panoTouchStartHandler) panoRenderer.domElement.removeEventListener("touchstart", panoTouchStartHandler);
-    if (panoTouchMoveHandler) panoRenderer.domElement.removeEventListener("touchmove", panoTouchMoveHandler);
-    if (panoTouchEndHandler) panoRenderer.domElement.removeEventListener("touchend", panoTouchEndHandler);
-    if (panoWheelHandler) panoRenderer.domElement.removeEventListener("wheel", panoWheelHandler);
+  if (panoTouchStartHandler) panoOverlay.removeEventListener("touchstart", panoTouchStartHandler, true);
+  if (panoTouchMoveHandler) panoOverlay.removeEventListener("touchmove", panoTouchMoveHandler, true);
+  if (panoTouchEndHandler) {
+    panoOverlay.removeEventListener("touchend", panoTouchEndHandler, true);
+    panoOverlay.removeEventListener("touchcancel", panoTouchEndHandler, true);
   }
+  if (panoWheelHandler && panoRenderer) panoRenderer.domElement.removeEventListener("wheel", panoWheelHandler);
   panoTouchStartHandler = panoTouchMoveHandler = panoTouchEndHandler = panoWheelHandler = null;
   panoPinchStartDistance = 0;
   if (panoControls) panoControls.dispose();
@@ -746,10 +747,11 @@ function openPanorama(pano) {
   panoTouchEndHandler = (event) => {
     if (event.touches.length < 2) panoPinchStartDistance = 0;
   };
-  panoRenderer.domElement.addEventListener("touchstart", panoTouchStartHandler, { passive: true });
-  panoRenderer.domElement.addEventListener("touchmove", panoTouchMoveHandler, { passive: false });
-  panoRenderer.domElement.addEventListener("touchend", panoTouchEndHandler, { passive: true });
-  panoRenderer.domElement.addEventListener("touchcancel", panoTouchEndHandler, { passive: true });
+  // Capture aşamasında dinle: OrbitControls'tan önce iki parmak hareketini yakala.
+  panoOverlay.addEventListener("touchstart", panoTouchStartHandler, { passive: true, capture: true });
+  panoOverlay.addEventListener("touchmove", panoTouchMoveHandler, { passive: false, capture: true });
+  panoOverlay.addEventListener("touchend", panoTouchEndHandler, { passive: true, capture: true });
+  panoOverlay.addEventListener("touchcancel", panoTouchEndHandler, { passive: true, capture: true });
 
   // Masaüstünde fare tekerleğiyle yakınlaştırma/uzaklaştırma.
   panoWheelHandler = (event) => {
