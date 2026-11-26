@@ -409,6 +409,11 @@ let activePanorama = null;
 let panoRenderer = null, panoScene = null, panoCamera = null, panoControls = null;
 let panoAnimationFrame = 0;
 let panoResizeObserver = null;
+let panoPinchStartDistance = 0;
+let panoPinchStartFov = 75;
+let panoTouchStartHandler = null;
+let panoTouchMoveHandler = null;
+let panoTouchEndHandler = null;
 let currentFolder = null;
 let currentFileName = null;
 
@@ -617,6 +622,13 @@ function closePanorama() {
   activePanorama = null;
   if (panoAnimationFrame) cancelAnimationFrame(panoAnimationFrame);
   panoAnimationFrame = 0;
+  if (panoRenderer && panoRenderer.domElement) {
+    if (panoTouchStartHandler) panoRenderer.domElement.removeEventListener("touchstart", panoTouchStartHandler);
+    if (panoTouchMoveHandler) panoRenderer.domElement.removeEventListener("touchmove", panoTouchMoveHandler);
+    if (panoTouchEndHandler) panoRenderer.domElement.removeEventListener("touchend", panoTouchEndHandler);
+  }
+  panoTouchStartHandler = panoTouchMoveHandler = panoTouchEndHandler = null;
+  panoPinchStartDistance = 0;
   if (panoControls) panoControls.dispose();
   if (panoResizeObserver) panoResizeObserver.disconnect();
   panoResizeObserver = null;
@@ -707,6 +719,35 @@ function openPanorama(pano) {
   panoRenderer.domElement.style.webkitUserSelect = "none";
   panoControls.touches.TWO = THREE.TOUCH.DOLLY_PAN;
   panoControls.target.set(0, 0, 0);
+
+  // iPhone/iPad için bağımsız iki parmak pinch zoom.
+  const touchDistance = (touches) => {
+    const dx = touches[0].clientX - touches[1].clientX;
+    const dy = touches[0].clientY - touches[1].clientY;
+    return Math.hypot(dx, dy);
+  };
+  panoTouchStartHandler = (event) => {
+    if (event.touches.length === 2) {
+      panoPinchStartDistance = touchDistance(event.touches);
+      panoPinchStartFov = panoCamera.fov;
+    }
+  };
+  panoTouchMoveHandler = (event) => {
+    if (event.touches.length === 2 && panoPinchStartDistance > 0) {
+      event.preventDefault();
+      const currentDistance = touchDistance(event.touches);
+      const nextFov = panoPinchStartFov * panoPinchStartDistance / Math.max(currentDistance, 1);
+      panoCamera.fov = THREE.MathUtils.clamp(nextFov, 25, 100);
+      panoCamera.updateProjectionMatrix();
+    }
+  };
+  panoTouchEndHandler = (event) => {
+    if (event.touches.length < 2) panoPinchStartDistance = 0;
+  };
+  panoRenderer.domElement.addEventListener("touchstart", panoTouchStartHandler, { passive: true });
+  panoRenderer.domElement.addEventListener("touchmove", panoTouchMoveHandler, { passive: false });
+  panoRenderer.domElement.addEventListener("touchend", panoTouchEndHandler, { passive: true });
+  panoRenderer.domElement.addEventListener("touchcancel", panoTouchEndHandler, { passive: true });
   panoControls.update();
 
   const resize = () => {
