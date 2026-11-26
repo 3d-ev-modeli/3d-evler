@@ -327,20 +327,8 @@ function renderPanoramaSummary(){
 function makeEditorPanoramaMarker(pano,index){
   const radius=Math.max(modelSize.length()*0.014,0.055);
   const root=new THREE.Group();
-  const disk=new THREE.Mesh(
-    new THREE.CylinderGeometry(radius*0.56,radius*0.78,radius*0.24,32),
-    new THREE.MeshStandardMaterial({color:0x078fa9,roughness:0.34,metalness:0.08})
-  );
-  disk.position.y=radius*0.18;
-  disk.castShadow=true;
-  root.add(disk);
-  const ring=new THREE.Mesh(
-    new THREE.TorusGeometry(radius*0.76,radius*0.09,10,36),
-    new THREE.MeshBasicMaterial({color:0x7eeaf0})
-  );
-  ring.rotation.x=Math.PI/2;
-  ring.position.y=radius*0.12;
-  root.add(ring);
+
+  // Tek işaretçi: küçük 360° etiketi. Ayrı turkuaz disk ve halka kaldırıldı.
   const canvas=document.createElement("canvas");
   canvas.width=512;canvas.height=256;
   const ctx=canvas.getContext("2d");
@@ -352,16 +340,16 @@ function makeEditorPanoramaMarker(pano,index){
   const texture=new THREE.CanvasTexture(canvas);
   texture.colorSpace=THREE.SRGBColorSpace;
   const badge=new THREE.Sprite(new THREE.SpriteMaterial({map:texture,transparent:true,depthTest:false}));
-  badge.scale.set(radius*3.35,radius*1.68,1);
-  badge.position.y=radius*1.55;
+  badge.scale.set(radius*1.45,radius*0.72,1);
+  badge.position.y=radius*0.72;
   root.add(badge);
+
   root.position.set(...pano.position);
   root.userData.baseY=root.position.y;
-  root.userData.floatHeight=radius*0.10;
+  root.userData.floatHeight=radius*0.06;
   root.userData.phase=index*0.7;
   return root;
 }
-
 function drawPanoramas(){
   if(!panoramaGroup)return;
   panoramaGroup.traverse(obj=>{
