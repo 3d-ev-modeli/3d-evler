@@ -34,6 +34,14 @@ button:disabled{opacity:.45;cursor:not-allowed}
 input[type=range]{width:100%;accent-color:#176b43;cursor:pointer}
 .range-value{min-width:52px;text-align:right;font-size:12px;font-weight:700;font-variant-numeric:tabular-nums}
 #summary{font:12px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace;background:#f7f8f9;border:1px solid #e5e7e9;border-radius:8px;padding:10px;white-space:pre-wrap;overflow-wrap:anywhere;max-height:160px;overflow:auto}
+#panoramaPhotoList{display:grid;gap:8px;max-height:230px;overflow:auto}
+.panorama-photo{display:grid;grid-template-columns:76px minmax(0,1fr);align-items:center;gap:9px;width:100%;padding:7px;text-align:left;border:1px solid #e2e6e9;background:#fff}
+.panorama-photo.selected{border:2px solid #0c9eaa;background:#effbfc;padding:6px}
+.panorama-photo img{width:76px;height:56px;object-fit:cover;border-radius:6px;background:#edf1f3}
+.panorama-photo strong{display:block;font-size:12px;line-height:1.35;overflow-wrap:anywhere}
+.panorama-photo small{display:block;margin-top:4px;color:#6e7780;font-size:11px}
+#panoramaStep{margin-top:9px;padding:9px 10px;border-radius:8px;background:#eef9fa;color:#087d89;font-size:12px;line-height:1.45}
+.section-title{font-size:16px;font-weight:700;margin:22px 0 5px}
 .small{font-size:12px;color:#707780;line-height:1.45}
 .footer-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
 @media(max-width:900px){main{grid-template-columns:1fr;padding:10px}#viewer{height:58vh;min-height:360px}#panel{order:-1}header{padding:12px 14px}}
@@ -100,7 +108,24 @@ input[type=range]{width:100%;accent-color:#176b43;cursor:pointer}
       <span id="rotationValue" class="range-value">—</span>
     </div>
 
-    <label>Yerleşim özeti</label>
+    <div class="section-title">360° fotoğraf noktaları</div>
+    <p class="small">Önce Drive fotoğrafını seç, sonra makette bulunduğu zemine bir kez tıkla. Yön ayarı gerekmez.</p>
+    <div id="panoramaPhotoList"><div class="small">Fotoğraflar yükleniyor…</div></div>
+    <label for="panoramaSelect">Yerleştirilen 360° noktası</label>
+    <select id="panoramaSelect" disabled><option>Henüz 360° noktası yok</option></select>
+    <div class="footer-actions">
+      <button id="placePanoramaButton" class="primary" type="button" disabled>Seçili fotoğrafı yerleştir</button>
+      <button id="movePanoramaButton" type="button" disabled>Konumu değiştir</button>
+    </div>
+    <div class="footer-actions">
+      <button id="deletePanoramaButton" class="danger" type="button" disabled>Seçili noktayı sil</button>
+      <button id="cancelPanoramaButton" type="button" disabled>İptal</button>
+    </div>
+    <div id="panoramaStep">Bir fotoğraf seçerek başlayabilirsin.</div>
+    <label>360° yerleşim özeti</label>
+    <div id="panoramaSummary" class="small">Henüz 360° noktası eklenmedi.</div>
+
+    <label>Ok yerleşim özeti</label>
     <div id="summary">Henüz ok eklenmedi.</div>
     <p class="small" style="margin:10px 0 0">Üç katın ok konumlarını tek dosyada indirebilirsin. Dosyayı buraya yüklediğinde canlı siteye ben işleyeceğim; kod aramana gerek yok.</p>
     <div class="footer-actions">
@@ -119,6 +144,7 @@ const params = new URLSearchParams(location.search);
 const folder = params.get("villa") || DEFAULT_FOLDER;
 const floorNames = ["bodrum kat.glb","zemin.glb","1. kat.glb"];
 const STORAGE_KEY = "3d-ev-arrow-editor-v2:" + folder;
+const PANORAMA_STORAGE_KEY = "3d-ev-panorama-editor-v1:" + folder;
 
 const viewer = document.getElementById("viewer");
 const statusBox = document.getElementById("status");
@@ -136,11 +162,19 @@ const sizeSlider = document.getElementById("sizeSlider");
 const sizeValue = document.getElementById("sizeValue");
 const rotationSlider = document.getElementById("rotationSlider");
 const rotationValue = document.getElementById("rotationValue");
+const panoramaPhotoList = document.getElementById("panoramaPhotoList");
+const panoramaSelect = document.getElementById("panoramaSelect");
+const placePanoramaButton = document.getElementById("placePanoramaButton");
+const movePanoramaButton = document.getElementById("movePanoramaButton");
+const deletePanoramaButton = document.getElementById("deletePanoramaButton");
+const cancelPanoramaButton = document.getElementById("cancelPanoramaButton");
+const panoramaStep = document.getElementById("panoramaStep");
+const panoramaSummary = document.getElementById("panoramaSummary");
 
 document.getElementById("backLink").href = "./?villa=" + encodeURIComponent(folder);
 
 let appConfig = {villas:{}};
-let scene, camera, renderer, controls, currentModel = null, arrowGroup;
+let scene, camera, renderer, controls, currentModel = null, arrowGroup, panoramaGroup;
 let modelSize = new THREE.Vector3();
 let activeKind = "entrance";
 let placementArmed = false;
@@ -148,6 +182,9 @@ let placementAction = "new";
 let selectedIndex = -1;
 let baseArrowLength = 1;
 let placementsByFloor = {};
+let panoramaPlacementsByFloor = {};
+let selectedPhotoId = null;
+let selectedPanoramaIndex = -1;
 let pointerStart = null;
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
@@ -176,6 +213,174 @@ function placementsForFloor(name){
 }
 
 function currentPlacements(){return placementsForFloor(floorSelect.value);}
+
+function photosForFloor(name){
+  const photos=floorConfig(name).panoramaPhotos;
+  return Array.isArray(photos)?photos:[];
+}
+
+function panoramasForFloor(name){
+  if(!panoramaPlacementsByFloor[name]){
+    const source=floorConfig(name).panoramas;
+    panoramaPlacementsByFloor[name]=Array.isArray(source)?structuredClone(source):[];
+  }
+  return panoramaPlacementsByFloor[name];
+}
+
+function currentPanoramas(){return panoramasForFloor(floorSelect.value);}
+
+function restorePanoramaDraft(){
+  try{
+    const saved=JSON.parse(localStorage.getItem(PANORAMA_STORAGE_KEY)||"null");
+    if(saved&&typeof saved==="object"){
+      floorNames.forEach(name=>{
+        if(Array.isArray(saved[name])) panoramaPlacementsByFloor[name]=saved[name];
+      });
+    }
+  }catch(error){console.warn("360° taslağı okunamadı.",error);}
+}
+
+function savePanoramaDraft(){
+  try{localStorage.setItem(PANORAMA_STORAGE_KEY,JSON.stringify(panoramaPlacementsByFloor));}
+  catch(error){console.warn("360° taslağı kaydedilemedi.",error);}
+}
+
+function renderPhotoList(){
+  panoramaPhotoList.replaceChildren();
+  const photos=photosForFloor(floorSelect.value);
+  if(!photos.length){
+    const note=document.createElement("div");
+    note.className="small";
+    note.textContent="Bu kat için henüz Drive fotoğraf klasörü tanımlanmamış.";
+    panoramaPhotoList.appendChild(note);
+    placePanoramaButton.disabled=true;
+    selectedPhotoId=null;
+    return;
+  }
+  photos.forEach((photo,index)=>{
+    const placedIndex=currentPanoramas().findIndex(p=>p.driveFileId===photo.id);
+    const button=document.createElement("button");
+    button.type="button";
+    button.className="panorama-photo"+(selectedPhotoId===photo.id?" selected":"");
+    const image=document.createElement("img");
+    image.src=photo.thumbnailUrl||("https://drive.google.com/thumbnail?id="+encodeURIComponent(photo.id)+"&sz=w320");
+    image.alt="360° fotoğraf önizlemesi";
+    image.loading="lazy";
+    const info=document.createElement("span");
+    const title=document.createElement("strong");
+    title.textContent=photo.title||("360° Fotoğraf "+(index+1));
+    const state=document.createElement("small");
+    state.textContent=placedIndex>=0?"Konum yerleştirildi":"Konum henüz belirlenmedi";
+    info.append(title,state);
+    button.append(image,info);
+    button.addEventListener("click",()=>{
+      selectedPhotoId=photo.id;
+      if(placedIndex>=0) selectedPanoramaIndex=placedIndex;
+      renderPhotoList();
+      renderPanoramaSelect();
+      placePanoramaButton.disabled=placedIndex>=0;
+      panoramaStep.textContent=placedIndex>=0
+        ?"Bu fotoğraf zaten yerleştirilmiş. İstersen mevcut noktanın konumunu değiştirebilirsin."
+        :"Fotoğraf seçildi. Şimdi “Seçili fotoğrafı yerleştir” düğmesine bas.";
+      setStatus("360° fotoğraf seçildi: "+(photo.title||"Fotoğraf "+(index+1)));
+    });
+    panoramaPhotoList.appendChild(button);
+  });
+  const selected=photos.find(p=>p.id===selectedPhotoId);
+  const alreadyPlaced=selected&&currentPanoramas().some(p=>p.driveFileId===selected.id);
+  placePanoramaButton.disabled=!selected||alreadyPlaced;
+}
+
+function renderPanoramaSelect(){
+  const items=currentPanoramas();
+  panoramaSelect.replaceChildren();
+  items.forEach((pano,index)=>{
+    const option=document.createElement("option");
+    option.value=String(index);
+    option.textContent=pano.title||("360° Fotoğraf "+(index+1));
+    panoramaSelect.appendChild(option);
+  });
+  if(selectedPanoramaIndex>=items.length) selectedPanoramaIndex=items.length-1;
+  if(selectedPanoramaIndex<0&&items.length) selectedPanoramaIndex=0;
+  panoramaSelect.disabled=!items.length;
+  if(items.length) panoramaSelect.value=String(selectedPanoramaIndex);
+  else{
+    const option=document.createElement("option");
+    option.textContent="Henüz 360° noktası yok";
+    panoramaSelect.appendChild(option);
+  }
+  const has=selectedPanoramaIndex>=0&&!!items[selectedPanoramaIndex];
+  movePanoramaButton.disabled=!has;
+  deletePanoramaButton.disabled=!has;
+  cancelPanoramaButton.disabled=!placementArmed||
+    !["newPanorama","movePanorama"].includes(placementAction);
+  renderPanoramaSummary();
+}
+
+function renderPanoramaSummary(){
+  const items=currentPanoramas();
+  panoramaSummary.textContent=items.length
+    ?items.map((p,index)=>(index+1)+". "+(p.title||"360° Fotoğraf")+" · Konum: ["+p.position.map(v=>Number(v).toFixed(3)).join(", ")+"]").join("\n")
+    :"Henüz 360° noktası eklenmedi.";
+}
+
+function makeEditorPanoramaMarker(pano,index){
+  const radius=Math.max(modelSize.length()*0.014,0.055);
+  const root=new THREE.Group();
+  const disk=new THREE.Mesh(
+    new THREE.CylinderGeometry(radius*0.56,radius*0.78,radius*0.24,32),
+    new THREE.MeshStandardMaterial({color:0x078fa9,roughness:0.34,metalness:0.08})
+  );
+  disk.position.y=radius*0.18;
+  disk.castShadow=true;
+  root.add(disk);
+  const ring=new THREE.Mesh(
+    new THREE.TorusGeometry(radius*0.76,radius*0.09,10,36),
+    new THREE.MeshBasicMaterial({color:0x7eeaf0})
+  );
+  ring.rotation.x=Math.PI/2;
+  ring.position.y=radius*0.12;
+  root.add(ring);
+  const canvas=document.createElement("canvas");
+  canvas.width=512;canvas.height=256;
+  const ctx=canvas.getContext("2d");
+  ctx.fillStyle="#078fa9";
+  ctx.beginPath();ctx.roundRect(18,18,476,220,92);ctx.fill();
+  ctx.strokeStyle="#ffffff";ctx.lineWidth=12;ctx.stroke();
+  ctx.fillStyle="#ffffff";ctx.font="bold 118px Segoe UI, Arial";
+  ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillText("360°",256,132);
+  const texture=new THREE.CanvasTexture(canvas);
+  texture.colorSpace=THREE.SRGBColorSpace;
+  const badge=new THREE.Sprite(new THREE.SpriteMaterial({map:texture,transparent:true,depthTest:false}));
+  badge.scale.set(radius*3.35,radius*1.68,1);
+  badge.position.y=radius*1.55;
+  root.add(badge);
+  root.position.set(...pano.position);
+  root.userData.baseY=root.position.y;
+  root.userData.floatHeight=radius*0.10;
+  root.userData.phase=index*0.7;
+  return root;
+}
+
+function drawPanoramas(){
+  if(!panoramaGroup)return;
+  panoramaGroup.traverse(obj=>{
+    if(obj.geometry)obj.geometry.dispose();
+    if(obj.material){
+      const mats=Array.isArray(obj.material)?obj.material:[obj.material];
+      mats.forEach(m=>{if(m.map)m.map.dispose();m.dispose();});
+    }
+  });
+  panoramaGroup.clear();
+  currentPanoramas().forEach((pano,index)=>{
+    if(Array.isArray(pano.position)&&pano.position.length===3){
+      panoramaGroup.add(makeEditorPanoramaMarker(pano,index));
+    }
+  });
+  renderPhotoList();
+  renderPanoramaSelect();
+  savePanoramaDraft();
+}
 
 function restoreDraft(){
   try{
@@ -329,6 +534,43 @@ function handleModelClick(event){
     return;
   }
   const point=hit.point.clone();
+
+  if(placementAction==="newPanorama"||placementAction==="movePanorama"){
+    const panoramas=currentPanoramas();
+    if(placementAction==="movePanorama"){
+      const selected=panoramas[selectedPanoramaIndex];
+      if(!selected){placementArmed=false;drawPanoramas();setStatus("Önce taşınacak 360° noktasını seç.");return;}
+      selected.position=[point.x,point.y,point.z];
+      setStatus("360° fotoğrafının konumu değiştirildi.");
+      panoramaStep.textContent="Konum güncellendi. İstersen başka bir noktayı da düzenleyebilirsin.";
+    }else{
+      const photo=photosForFloor(floorSelect.value).find(p=>p.id===selectedPhotoId);
+      if(!photo){placementArmed=false;drawPanoramas();setStatus("Önce listeden bir 360° fotoğraf seç.");return;}
+      const existing=panoramas.findIndex(p=>p.driveFileId===photo.id);
+      if(existing>=0){
+        selectedPanoramaIndex=existing;
+        setStatus("Bu fotoğraf zaten yerleştirilmiş. Mevcut konumu seçildi.");
+      }else{
+        panoramas.push({
+          driveFileId:photo.id,
+          title:photo.title||"360° Fotoğraf",
+          url:photo.url,
+          thumbnailUrl:photo.thumbnailUrl||"",
+          position:[point.x,point.y,point.z]
+        });
+        selectedPanoramaIndex=panoramas.length-1;
+        setStatus("360° fotoğraf noktası yerleştirildi.");
+      }
+      panoramaStep.textContent="360° işareti yerleştirildi. Müşteri bu işarete dokununca fotoğraf açılacak.";
+    }
+    placementArmed=false;
+    placementAction="new";
+    placeArrowButton.classList.remove("active");
+    moveArrowButton.classList.remove("active");
+    drawPanoramas();
+    return;
+  }
+
   const placements=currentPlacements();
 
   if(placementAction==="move"){
@@ -397,6 +639,8 @@ function initViewer(){
   controls.maxPolarAngle=Math.PI/2-0.02;
   arrowGroup=new THREE.Group();
   scene.add(arrowGroup);
+  panoramaGroup=new THREE.Group();
+  scene.add(panoramaGroup);
   renderer.domElement.addEventListener("pointerdown",e=>{pointerStart={x:e.clientX,y:e.clientY};});
   renderer.domElement.addEventListener("click",handleModelClick);
   window.addEventListener("resize",resize);
@@ -423,6 +667,14 @@ function animate(){
       if(base&&dir)arrow.position.copy(base).addScaledVector(dir,Math.sin(t*2.4)*arrow.userData.moveAmount);
     });
   }
+  if(panoramaGroup){
+    const t=clock.elapsedTime;
+    panoramaGroup.children.forEach(marker=>{
+      marker.position.y=marker.userData.baseY+Math.sin(t*2.1+marker.userData.phase)*marker.userData.floatHeight;
+      const pulse=1+0.035*(1+Math.sin(t*2.1+marker.userData.phase));
+      marker.scale.setScalar(pulse);
+    });
+  }
   if(renderer&&scene&&camera)renderer.render(scene,camera);
 }
 
@@ -443,6 +695,7 @@ async function loadFloor(name){
     currentModel=null;
   }
   arrowGroup.clear();
+  if(panoramaGroup)panoramaGroup.clear();
   try{
     const url="./"+encodeURIComponent(folder)+"/"+encodeURIComponent(name);
     const gltf=await new GLTFLoader().loadAsync(url);
@@ -474,8 +727,10 @@ async function loadFloor(name){
     controls.maxDistance=baseDistance*4;
     controls.update();
     selectedIndex=currentPlacements().length?0:-1;
+    selectedPanoramaIndex=currentPanoramas().length?0:-1;
     drawPlacements();
-    setStatus("Model hazır. Ok türünü seçip “Yeni ok yerleştir” düğmesine bas.");
+    drawPanoramas();
+    setStatus("Model hazır. Okları veya 360° fotoğraf noktalarını yerleştirebilirsin.");
   }catch(error){
     console.error(error);
     setStatus("Model yüklenemedi. Kat dosyasını ve bağlantıyı kontrol et.");
@@ -497,6 +752,8 @@ entranceMode.addEventListener("click",()=>setKind("entrance"));
 stairMode.addEventListener("click",()=>setKind("stair"));
 floorSelect.addEventListener("change",()=>{
   selectedIndex=-1;
+  selectedPanoramaIndex=-1;
+  selectedPhotoId=null;
   loadFloor(floorSelect.value);
 });
 
@@ -527,6 +784,54 @@ cancelPlacementButton.addEventListener("click",()=>{
   stepText.textContent="Yerleştirme iptal edildi. İstediğin zaman tekrar başlayabilirsin.";
   setStatus("Yerleştirme iptal edildi.");
   syncArrowControls();
+});
+
+placePanoramaButton.addEventListener("click",()=>{
+  if(!selectedPhotoId)return;
+  if(currentPanoramas().some(p=>p.driveFileId===selectedPhotoId)){
+    setStatus("Bu fotoğraf zaten yerleştirilmiş. Mevcut noktayı seçip taşıyabilirsin.");
+    return;
+  }
+  placementAction="newPanorama";
+  placementArmed=true;
+  panoramaStep.textContent="Şimdi 3D makette bu 360° fotoğrafın çekildiği zemine tıkla.";
+  cancelPanoramaButton.disabled=false;
+  setStatus("360° fotoğrafı için makette konum seç.");
+});
+
+movePanoramaButton.addEventListener("click",()=>{
+  if(selectedPanoramaIndex<0||!currentPanoramas()[selectedPanoramaIndex])return;
+  placementAction="movePanorama";
+  placementArmed=true;
+  panoramaStep.textContent="Şimdi seçili 360° işaretinin yeni konumuna tıkla.";
+  cancelPanoramaButton.disabled=false;
+  setStatus("360° noktasının yeni konumunu seç.");
+});
+
+deletePanoramaButton.addEventListener("click",()=>{
+  const items=currentPanoramas();
+  if(selectedPanoramaIndex<0||!items[selectedPanoramaIndex])return;
+  items.splice(selectedPanoramaIndex,1);
+  selectedPanoramaIndex=Math.min(selectedPanoramaIndex,items.length-1);
+  drawPanoramas();
+  setStatus("Seçili 360° noktası silindi.");
+});
+
+cancelPanoramaButton.addEventListener("click",()=>{
+  placementArmed=false;
+  placementAction="new";
+  panoramaStep.textContent="Yerleştirme iptal edildi.";
+  cancelPanoramaButton.disabled=true;
+  setStatus("360° yerleştirmesi iptal edildi.");
+  renderPanoramaSelect();
+});
+
+panoramaSelect.addEventListener("change",()=>{
+  selectedPanoramaIndex=Number(panoramaSelect.value);
+  const item=currentPanoramas()[selectedPanoramaIndex];
+  if(item)selectedPhotoId=item.driveFileId||null;
+  renderPhotoList();
+  renderPanoramaSelect();
 });
 
 arrowSelect.addEventListener("change",()=>{
@@ -574,7 +879,7 @@ document.getElementById("downloadButton").addEventListener("click",()=>{
   const output={villa:folder,floors:{}};
   floorNames.forEach(name=>{
     const items=placementsForFloor(name);
-    const floor={entranceArrow:null,stairArrows:[]};
+    const floor={entranceArrow:null,stairArrows:[],panoramas:structuredClone(panoramasForFloor(name))};
     items.forEach(item=>{
       if(item.kind==="entrance")floor.entranceArrow=item.spec;
       else floor.stairArrows.push(item.spec);
@@ -585,7 +890,7 @@ document.getElementById("downloadButton").addEventListener("click",()=>{
   const url=URL.createObjectURL(blob);
   const a=document.createElement("a");
   a.href=url;
-  a.download="ref-057-ok-konumlari.json";
+  a.download="ref-057-ok-ve-360-konumlari.json";
   a.click();
   URL.revokeObjectURL(url);
   setStatus("Üç katın ok konumları tek JSON dosyasına aktarıldı.");
@@ -597,6 +902,7 @@ async function start(){
     if(response.ok)appConfig=await response.json();
   }catch(error){console.warn("Portföy ayarları okunamadı.",error);}
   restoreDraft();
+  restorePanoramaDraft();
   const requested=params.get("floor");
   if(requested&&floorNames.includes(requested))floorSelect.value=requested;
   initViewer();
