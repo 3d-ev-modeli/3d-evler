@@ -50,8 +50,8 @@
       "ref": "057",
       "location": "Beylikdüzü Gürpınar",
       "details": "6+1 Villa",
-      "coverImage": "",
-      "sharePath": "",
+      "coverImage": "./covers/057.jpg",
+      "sharePath": "./share/ref-057.html",
       "musicUrl": "",
       "floors": {
         "bodrum kat.glb": {
