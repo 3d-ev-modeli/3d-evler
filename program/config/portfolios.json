@@ -1,5 +1,54 @@
 {
   "musicUrl": "",
   "models": {},
-  "villas": {}
+  "villas": {
+    "ref-057": {
+      "ref": "057",
+      "location": "Beylikdüzü Gürpınar",
+      "details": "6+1 Müstakil Villa",
+      "driveFolderId": "1b8zdz4UZvnM2T5rvmknVxVrLdCYJgbGe",
+      "floors": {
+        "bodrum-kat.glb": {
+          "driveModelId": "1ULsPwK5elIgruiR-U5ufICnKdPBUwZsR",
+          "panoramaPhotos": [],
+          "panoramas": []
+        },
+        "1-kat.glb": {
+          "driveModelId": "1VSqRc4wBZeveZeWCW4uMc4Gvgzq9AsCF",
+          "panoramaPhotos": [
+            {
+              "id": "1VSPc0JiWqP0aU3TTQFnqvP7wcJ9ue-_7",
+              "sourceName": "IMG_20250619_131159_00_027.jpg",
+              "title": "IMG_20250619_131159_00_027",
+              "url": "./360/057/1-kat/1VSPc0JiWqP0aU3TTQFnqvP7wcJ9ue-_7-73ba61a2fc0b.jpg",
+              "thumbnailUrl": "./360/057/1-kat/1VSPc0JiWqP0aU3TTQFnqvP7wcJ9ue-_7-73ba61a2fc0b.jpg"
+            },
+            {
+              "id": "1qGAsYLtRBPtjzJZgN_hSgGSkWZlhqZNo",
+              "sourceName": "IMG_20250619_131113_00_025.jpg",
+              "title": "IMG_20250619_131113_00_025",
+              "url": "./360/057/1-kat/1qGAsYLtRBPtjzJZgN_hSgGSkWZlhqZNo-d9c7bc5556fa.jpg",
+              "thumbnailUrl": "./360/057/1-kat/1qGAsYLtRBPtjzJZgN_hSgGSkWZlhqZNo-d9c7bc5556fa.jpg"
+            },
+            {
+              "id": "1algWunTUUDBTmTY-BQPfie9ZE4J0rHSY",
+              "sourceName": "IMG_20250619_131052_00_024.jpg",
+              "title": "IMG_20250619_131052_00_024",
+              "url": "./360/057/1-kat/1algWunTUUDBTmTY-BQPfie9ZE4J0rHSY-f56f64f3cc6c.jpg",
+              "thumbnailUrl": "./360/057/1-kat/1algWunTUUDBTmTY-BQPfie9ZE4J0rHSY-f56f64f3cc6c.jpg"
+            }
+          ],
+          "panoramas": []
+        },
+        "zemin.glb": {
+          "driveModelId": "1gN_YVk3kLwqfqrJX_9oVEC1EN3Xc6tsP",
+          "panoramaPhotos": [],
+          "panoramas": []
+        }
+      },
+      "coverImage": "./covers/057-b69b0aae19fb.jpg",
+      "sharePath": "./share/ref-057.html?v=b69b0aae19fb",
+      "musicUrl": "./audio/057-c53e49b73047.mp3"
+    }
+  }
 }
