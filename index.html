@@ -623,13 +623,16 @@ function closePanorama() {
   activePanorama = null;
   if (panoAnimationFrame) cancelAnimationFrame(panoAnimationFrame);
   panoAnimationFrame = 0;
-  if (panoTouchStartHandler) panoOverlay.removeEventListener("touchstart", panoTouchStartHandler, true);
-  if (panoTouchMoveHandler) panoOverlay.removeEventListener("touchmove", panoTouchMoveHandler, true);
-  if (panoTouchEndHandler) {
-    panoOverlay.removeEventListener("touchend", panoTouchEndHandler, true);
-    panoOverlay.removeEventListener("touchcancel", panoTouchEndHandler, true);
+  if (panoRenderer && panoRenderer.domElement) {
+    const canvas = panoRenderer.domElement;
+    if (panoTouchStartHandler) canvas.removeEventListener("touchstart", panoTouchStartHandler, true);
+    if (panoTouchMoveHandler) canvas.removeEventListener("touchmove", panoTouchMoveHandler, true);
+    if (panoTouchEndHandler) {
+      canvas.removeEventListener("touchend", panoTouchEndHandler, true);
+      canvas.removeEventListener("touchcancel", panoTouchEndHandler, true);
+    }
+    if (panoWheelHandler) canvas.removeEventListener("wheel", panoWheelHandler);
   }
-  if (panoWheelHandler && panoRenderer) panoRenderer.domElement.removeEventListener("wheel", panoWheelHandler);
   panoTouchStartHandler = panoTouchMoveHandler = panoTouchEndHandler = panoWheelHandler = null;
   panoPinchStartDistance = 0;
   if (panoControls) panoControls.dispose();
@@ -729,8 +732,11 @@ function openPanorama(pano) {
     const dy = touches[0].clientY - touches[1].clientY;
     return Math.hypot(dx, dy);
   };
+  // Özel zoom: pinch ve tekerlek FOV üzerinden çalışır; OrbitControls zoom kapalıdır.
   panoTouchStartHandler = (event) => {
     if (event.touches.length === 2) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
       panoPinchStartDistance = touchDistance(event.touches);
       panoPinchStartFov = panoCamera.fov;
     }
@@ -738,29 +744,32 @@ function openPanorama(pano) {
   panoTouchMoveHandler = (event) => {
     if (event.touches.length === 2 && panoPinchStartDistance > 0) {
       event.preventDefault();
+      event.stopImmediatePropagation();
       const currentDistance = touchDistance(event.touches);
       const nextFov = panoPinchStartFov * panoPinchStartDistance / Math.max(currentDistance, 1);
-      panoCamera.fov = THREE.MathUtils.clamp(nextFov, 25, 100);
+      panoCamera.fov = THREE.MathUtils.clamp(nextFov, 20, 100);
       panoCamera.updateProjectionMatrix();
     }
   };
   panoTouchEndHandler = (event) => {
     if (event.touches.length < 2) panoPinchStartDistance = 0;
   };
-  // Capture aşamasında dinle: OrbitControls'tan önce iki parmak hareketini yakala.
-  panoOverlay.addEventListener("touchstart", panoTouchStartHandler, { passive: true, capture: true });
-  panoOverlay.addEventListener("touchmove", panoTouchMoveHandler, { passive: false, capture: true });
-  panoOverlay.addEventListener("touchend", panoTouchEndHandler, { passive: true, capture: true });
-  panoOverlay.addEventListener("touchcancel", panoTouchEndHandler, { passive: true, capture: true });
+  const canvas = panoRenderer.domElement;
+  canvas.style.touchAction = "none";
+  canvas.style.webkitUserSelect = "none";
+  canvas.addEventListener("touchstart", panoTouchStartHandler, { passive: false, capture: true });
+  canvas.addEventListener("touchmove", panoTouchMoveHandler, { passive: false, capture: true });
+  canvas.addEventListener("touchend", panoTouchEndHandler, { passive: true, capture: true });
+  canvas.addEventListener("touchcancel", panoTouchEndHandler, { passive: true, capture: true });
 
-  // Masaüstünde fare tekerleğiyle yakınlaştırma/uzaklaştırma.
+  // Masaüstü fare tekerleği: aynı FOV zoom aralığını kullanır.
   panoWheelHandler = (event) => {
     event.preventDefault();
-    const factor = Math.exp(event.deltaY * 0.0015);
-    panoCamera.fov = THREE.MathUtils.clamp(panoCamera.fov * factor, 25, 100);
+    const factor = Math.exp(event.deltaY * 0.0018);
+    panoCamera.fov = THREE.MathUtils.clamp(panoCamera.fov * factor, 20, 100);
     panoCamera.updateProjectionMatrix();
   };
-  panoRenderer.domElement.addEventListener("wheel", panoWheelHandler, { passive: false });
+  canvas.addEventListener("wheel", panoWheelHandler, { passive: false });
   panoControls.update();
 
   const resize = () => {
