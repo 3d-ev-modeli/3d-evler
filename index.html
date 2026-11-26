@@ -318,7 +318,7 @@ button, .open {
   <div id="tourActions">
     <div id="panoramaButtons" hidden></div>
     <div id="musicControls" hidden role="group" aria-label="Portföy müziği">
-      <button id="musicToggle" type="button" aria-label="Sesi aç" aria-pressed="false">🔇</button>
+      <button id="musicToggle" type="button" aria-label="Sesi kapat" aria-pressed="true">🔊</button>
       <span id="musicMessage" role="status" aria-live="polite"></span>
     </div>
   </div>
@@ -610,7 +610,8 @@ function musicUrl(value) {
   } catch { return ""; }
 }
 function syncMusicControl() {
-  const audible = !backgroundMusic.paused && !backgroundMusic.muted;
+  // Show the user’s sound preference even while autoplay awaits a gesture.
+  const audible = !backgroundMusic.muted;
   const label = audible ? "Sesi kapat" : "Sesi aç";
   musicToggle.textContent = audible ? "🔊" : "🔇";
   musicToggle.setAttribute("aria-label", label);
