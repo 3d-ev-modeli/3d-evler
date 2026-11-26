@@ -88,9 +88,9 @@ input[type=range]{width:100%;accent-color:#176b43;cursor:pointer}
       <button id="cancelPlacementButton" type="button" disabled>İptal et</button>
     </div>
 
-    <label for="sizeSlider">Ok boyutu</label>
+    <label for="sizeSlider">Ok boyutu (çok küçük ayar dâhil)</label>
     <div class="range-row">
-      <input id="sizeSlider" type="range" min="0.05" max="2.50" step="0.01" value="1" disabled>
+      <input id="sizeSlider" type="range" min="0.01" max="2.50" step="0.005" value="1" disabled>
       <span id="sizeValue" class="range-value">—</span>
     </div>
 
@@ -248,7 +248,7 @@ function syncArrowControls(){
     rotationValue.textContent="—";
     return;
   }
-  const factor=THREE.MathUtils.clamp((Number(item.spec.length)||baseArrowLength)/baseArrowLength,0.05,2.5);
+  const factor=THREE.MathUtils.clamp((Number(item.spec.length)||baseArrowLength)/baseArrowLength,0.01,2.5);
   sizeSlider.value=String(factor);
   sizeValue.textContent=factor.toFixed(2).replace(".",",")+"×";
   const d=new THREE.Vector3(item.spec.direction[0],0,item.spec.direction[2]).normalize();
