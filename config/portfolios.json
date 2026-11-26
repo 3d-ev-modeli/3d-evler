@@ -80,23 +80,46 @@
           "panoramas": [],
           "entranceArrow": {
             "position": [
-              -0.23088560085822324,
-              0.010000021887001517,
-              -0.18896742838911543
+              -0.19276331867347807,
+              0.010000022646824638,
+              -0.19284537769082227
             ],
             "direction": [
               0.9986295347545738,
               0,
               -0.05233595624294384
             ],
-            "length": 0.12317093299593146,
-            "moveAmount": 0.0014780511959511776
+            "length": 0.06651230381780299,
+            "moveAmount": 0.007981476458136358
           },
           "stairArrows": []
         },
         "1. kat.glb": {
           "platformColor": "#f5f9fd",
-          "panoramas": [],
+          "panoramas": [
+            {
+              "driveFileId": "1VSPc0JiWqP0aU3TTQFnqvP7wcJ9ue-_7",
+              "title": "TEST 01 · IMG_20250619_131159_00_027.jpg",
+              "url": "https://drive.google.com/uc?export=view&id=1VSPc0JiWqP0aU3TTQFnqvP7wcJ9ue-_7",
+              "thumbnailUrl": "https://drive.google.com/thumbnail?id=1VSPc0JiWqP0aU3TTQFnqvP7wcJ9ue-_7&sz=w480",
+              "position": [
+                -0.051933973874781394,
+                0.035861010183889694,
+                -0.06702027751897671
+              ]
+            },
+            {
+              "driveFileId": "1qGAsYLtRBPtjzJZgN_hSgGSkWZlhqZNo",
+              "title": "TEST 02 · IMG_20250619_131113_00_025.jpg",
+              "url": "https://drive.google.com/uc?export=view&id=1qGAsYLtRBPtjzJZgN_hSgGSkWZlhqZNo",
+              "thumbnailUrl": "https://drive.google.com/thumbnail?id=1qGAsYLtRBPtjzJZgN_hSgGSkWZlhqZNo&sz=w480",
+              "position": [
+                0.21137450532621507,
+                0.03371897367286647,
+                -0.07642281416484549
+              ]
+            }
+          ],
           "stairArrows": [
             {
               "position": [
