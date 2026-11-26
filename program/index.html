@@ -288,13 +288,13 @@ button, .open {
 }
 
 #tourClose {
-  position: fixed;
-  top: max(10px, env(safe-area-inset-top));
-  right: max(10px, env(safe-area-inset-right));
+  position: absolute;
+  top: 16px;
+  right: 18px;
   z-index: 1000;
   margin: 0;
   padding: 6px 9px;
-  min-height: 32px;
+  min-height: 36px;
   border: 1px solid #dedede;
   border-radius: 16px;
   background: rgba(255,255,255,.95);
@@ -328,7 +328,6 @@ button, .open {
 <body>
 
 <div id="tour" hidden>
-  <button id="tourClose" type="button" aria-label="3D sunumu kapat">× Kapat</button>
 
   <div id="propertyTitle" hidden></div>
   <div id="floors" hidden></div>
@@ -341,6 +340,7 @@ button, .open {
   <div id="status" hidden></div>
 
   <div id="viewer">
+    <button id="tourClose" type="button" aria-label="3D sunumu kapat">× Kapat</button>
     <div id="panoOverlay" hidden>
       <div id="panoTitle"></div>
       <button id="panoClose" type="button">Kapat ✕</button>
