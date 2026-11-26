@@ -1,0 +1,50 @@
+{
+  "musicUrl": "",
+  "models": {
+    "007-Beylikdüzü Adnan Kahveci - 3+1 Daire.glb": {
+      "ref": "007",
+      "location": "Beylikdüzü Adnan Kahveci",
+      "details": "Umut Sitesi 3+1 Daire",
+      "coverImage": "./covers/007.jpg",
+      "sharePath": "./share/ref-007.html",
+      "musicUrl": "",
+      "platformColor": "#fbfaf6",
+      "panoramas": [],
+      "entranceArrow": null,
+      "stairArrows": []
+    }
+  },
+  "villas": {
+    "test villa": {
+      "ref": "008",
+      "location": "Test Villa",
+      "details": "",
+      "coverImage": "./covers/008.jpg",
+      "sharePath": "",
+      "musicUrl": "",
+      "floors": {
+        "Bodrum.glb": {
+          "platformColor": "#fdf7f5",
+          "panoramas": [],
+          "stairArrows": []
+        },
+        "Zemin.glb": {
+          "platformColor": null,
+          "panoramas": [],
+          "entranceArrow": null,
+          "stairArrows": []
+        },
+        "1. Kat.glb": {
+          "platformColor": "#f5f9fd",
+          "panoramas": [],
+          "stairArrows": []
+        },
+        "2. Kat.glb": {
+          "platformColor": "#faf7fd",
+          "panoramas": [],
+          "stairArrows": []
+        }
+      }
+    }
+  }
+}

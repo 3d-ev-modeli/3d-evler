@@ -82,8 +82,10 @@ canvas {
 }
 
 #propertyTitle .ref {
-  display: block;
-  margin: 0 auto 4px;
+  display: inline-block;
+  margin: 0 auto 5px;
+  white-space: nowrap;
+  width: auto;
 }
 
 #floors {
@@ -180,6 +182,91 @@ button, .open {
   color: #555;
 }
 
+#tourActions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  padding: 0 10px 8px;
+  background: #fff;
+}
+
+#panoramaButtons {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.panorama-button, #musicToggle {
+  margin: 0;
+  padding: 7px 11px;
+  border-radius: 18px;
+  background: #f1f3f5;
+  color: #42474d;
+  border: 1px solid #e1e4e8;
+  font-size: 12px;
+}
+
+#musicToggle.is-playing {
+  background: #e9f4ed;
+  color: #176b43;
+  border-color: #cfe5d7;
+}
+
+#panoOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  background: #101214;
+}
+
+#panoCanvas {
+  width: 100%;
+  height: 100%;
+}
+
+#panoClose {
+  position: absolute;
+  z-index: 2;
+  top: 14px;
+  right: 14px;
+  margin: 0;
+  padding: 9px 13px;
+  border-radius: 20px;
+  background: rgba(20, 22, 25, .78);
+  color: #fff;
+}
+
+#panoTitle {
+  position: absolute;
+  z-index: 2;
+  left: 14px;
+  top: 17px;
+  max-width: calc(100% - 115px);
+  color: #fff;
+  font-size: 14px;
+  text-shadow: 0 1px 4px #000;
+}
+
+#panoMessage {
+  position: absolute;
+  inset: 50% 20px auto;
+  transform: translateY(-50%);
+  color: #fff;
+  text-align: center;
+  font-size: 14px;
+  pointer-events: none;
+}
+
+@media (max-width: 600px) {
+  #propertyTitle { padding-top: 12px; }
+  #footer { padding-bottom: 14px; }
+  #floors { gap: 6px; padding: 7px; }
+  .floor-button { padding: 7px 9px; }
+}
+
 [hidden] {
   display: none !important;
 }
@@ -202,9 +289,20 @@ button, .open {
 
   <div id="propertyTitle" hidden></div>
   <div id="floors" hidden></div>
+  <div id="tourActions">
+    <div id="panoramaButtons" hidden></div>
+    <button id="musicToggle" type="button" hidden>Müziği başlat</button>
+  </div>
   <div id="status" hidden></div>
 
-  <div id="viewer"></div>
+  <div id="viewer">
+    <div id="panoOverlay" hidden>
+      <div id="panoTitle"></div>
+      <button id="panoClose" type="button">Kapat ✕</button>
+      <div id="panoCanvas"></div>
+      <div id="panoMessage" hidden></div>
+    </div>
+  </div>
 
   <div id="footer">
     <div class="footer-line"></div>
@@ -219,6 +317,8 @@ button, .open {
   </div>
 
 </div>
+
+<audio id="backgroundMusic" loop preload="none"></audio>
 
 <div id="panel" hidden>
 
@@ -245,6 +345,24 @@ const params = new URLSearchParams(location.search);
 const file = params.get("model");
 const villa = params.get("villa");
 
+let appConfig = { models: {}, villas: {}, musicUrl: "" };
+async function loadAppConfig() {
+  try {
+    const response = await fetch("./config/portfolios.json?rev=" + Date.now());
+    if (response.ok) appConfig = await response.json();
+  } catch (error) {
+    console.warn("Portföy ayarları yüklenemedi; varsayılan ayarlar kullanılacak.", error);
+  }
+}
+
+function getPortfolioConfig(folder, name) {
+  const base = folder
+    ? (appConfig.villas?.[folder] || {})
+    : (appConfig.models?.[name] || {});
+  const floor = folder ? (base.floors?.[name] || {}) : {};
+  return { ...base, ...floor };
+}
+
 const viewer = document.getElementById("viewer");
 const tour = document.getElementById("tour");
 const panel = document.getElementById("panel");
@@ -252,8 +370,25 @@ const list = document.getElementById("list");
 const floors = document.getElementById("floors");
 const propertyTitle = document.getElementById("propertyTitle");
 const status = document.getElementById("status");
+const panoramaButtons = document.getElementById("panoramaButtons");
+const musicToggle = document.getElementById("musicToggle");
+const backgroundMusic = document.getElementById("backgroundMusic");
+const panoOverlay = document.getElementById("panoOverlay");
+const panoCanvas = document.getElementById("panoCanvas");
+const panoTitle = document.getElementById("panoTitle");
+const panoMessage = document.getElementById("panoMessage");
+const panoClose = document.getElementById("panoClose");
 
 let scene, camera, renderer, controls, ground;
+let featureGroup = null;
+let panoramaMarkers = [];
+let animatedArrows = [];
+let activePanorama = null;
+let panoRenderer = null, panoScene = null, panoCamera = null, panoControls = null;
+let panoAnimationFrame = 0;
+let panoResizeObserver = null;
+let currentFolder = null;
+let currentFileName = null;
 
 let currentModel = null;
 let loadID = 0;
@@ -330,45 +465,31 @@ return {
 };
 }
 
-function showTitle(name) {
-
+function showTitle(name, folder = null) {
   propertyTitle.replaceChildren();
-
+  const cfg = getPortfolioConfig(folder, folder ? null : name);
   const data = parseTitle(name);
+  const refValue = cfg.ref || data?.ref || "";
+  const locationValue = cfg.location || data?.location || niceName(name);
+  const detailsValue = cfg.details || data?.details || "";
 
-  if (data) {
-
+  if (refValue) {
     const ref = document.createElement("div");
-
     ref.className = "ref";
-    ref.textContent = "Ref: " + data.ref;
-
+    ref.textContent = "Ref: " + String(refValue).replace(/^Ref\s*:?\s*/i, "");
     propertyTitle.appendChild(ref);
-
-    const location = document.createElement("div");
-
-    location.textContent = data.location.toLocaleUpperCase("tr-TR");
-
-    propertyTitle.appendChild(location);
-
-    if (data.details) {
-
-      const details = document.createElement("div");
-
-      details.textContent = niceName(data.details);
-
-      propertyTitle.appendChild(details);
-
-    }
-
-  } else {
-
-    propertyTitle.textContent = niceName(name);
-
   }
 
-  propertyTitle.hidden = false;
+  const location = document.createElement("div");
+  location.textContent = String(locationValue).toLocaleUpperCase("tr-TR");
+  propertyTitle.appendChild(location);
 
+  if (detailsValue) {
+    const details = document.createElement("div");
+    details.textContent = niceName(String(detailsValue));
+    propertyTitle.appendChild(details);
+  }
+  propertyTitle.hidden = false;
 }
 
 function compareNames(a, b) {
@@ -409,6 +530,275 @@ function showStatus(message) {
   status.textContent = message;
   status.hidden = false;
 
+}
+
+function floorRank(name) {
+  const n = String(name).toLocaleLowerCase("tr-TR");
+  if (/bodrum|basement/.test(n)) return 0;
+  if (/zemin|ground/.test(n)) return 1;
+  if (/1\s*\.?\s*kat|birinci|first|(^|[^0-9])1([^0-9]|$)/.test(n)) return 2;
+  if (/2\s*\.?\s*kat|ikinci|second|(^|[^0-9])2([^0-9]|$)/.test(n)) return 3;
+  return 10;
+}
+
+function floorLabel(name) {
+  const rank = floorRank(name);
+  if (rank === 0) return "Bodrum";
+  if (rank === 1) return "Zemin";
+  if (rank === 2) return "1. Kat";
+  if (rank === 3) return "2. Kat";
+  return niceName(name);
+}
+
+function applyMusic(folder, name) {
+  const cfg = getPortfolioConfig(folder, name);
+  const url = cfg.musicUrl || appConfig.musicUrl || "";
+  if (!url) {
+    musicToggle.hidden = true;
+    backgroundMusic.pause();
+    backgroundMusic.removeAttribute("src");
+    backgroundMusic.load();
+    musicToggle.classList.remove("is-playing");
+    musicToggle.textContent = "Müziği başlat";
+    return;
+  }
+  if (backgroundMusic.dataset.url !== url) {
+    backgroundMusic.pause();
+    backgroundMusic.src = url;
+    backgroundMusic.dataset.url = url;
+    backgroundMusic.volume = 0.22;
+    musicToggle.classList.remove("is-playing");
+    musicToggle.textContent = "Müziği başlat";
+  }
+  musicToggle.hidden = false;
+}
+
+musicToggle.addEventListener("click", async () => {
+  if (backgroundMusic.paused) {
+    try {
+      await backgroundMusic.play();
+      musicToggle.textContent = "Müziği duraklat";
+      musicToggle.classList.add("is-playing");
+    } catch (error) {
+      musicToggle.textContent = "Müzik açılamadı";
+      console.warn("Müzik oynatılamadı. Dosya yolu ve formatını kontrol edin.", error);
+    }
+  } else {
+    backgroundMusic.pause();
+    musicToggle.textContent = "Müziği başlat";
+    musicToggle.classList.remove("is-playing");
+  }
+});
+
+function closePanorama() {
+  panoOverlay.hidden = true;
+  activePanorama = null;
+  if (panoAnimationFrame) cancelAnimationFrame(panoAnimationFrame);
+  panoAnimationFrame = 0;
+  if (panoControls) panoControls.dispose();
+  if (panoResizeObserver) panoResizeObserver.disconnect();
+  panoResizeObserver = null;
+  if (panoRenderer) {
+    panoRenderer.dispose();
+    panoRenderer.domElement.remove();
+  }
+  if (panoScene) {
+    panoScene.traverse(obj => {
+      if (obj.geometry) obj.geometry.dispose();
+      if (obj.material) {
+        const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+        mats.forEach(m => {
+          if (m.map) m.map.dispose();
+          m.dispose();
+        });
+      }
+    });
+  }
+  panoRenderer = panoScene = panoCamera = panoControls = null;
+}
+
+panoClose.addEventListener("click", closePanorama);
+
+function openPanorama(pano) {
+  if (!pano || !pano.url) return;
+  closePanorama();
+  activePanorama = pano;
+  panoTitle.textContent = pano.title || "360° Görünüm";
+  panoMessage.textContent = "360° fotoğraf yükleniyor…";
+  panoMessage.hidden = false;
+  panoOverlay.hidden = false;
+
+  panoScene = new THREE.Scene();
+  panoCamera = new THREE.PerspectiveCamera(75, 1, 0.1, 1100);
+  panoCamera.position.set(0, 0, 0.1);
+  panoRenderer = new THREE.WebGLRenderer({ antialias: true });
+  panoRenderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  panoCanvas.appendChild(panoRenderer.domElement);
+
+  const geometry = new THREE.SphereGeometry(500, 64, 40);
+  geometry.scale(-1, 1, 1);
+  const material = new THREE.MeshBasicMaterial({ color: 0xffffff });
+  const sphere = new THREE.Mesh(geometry, material);
+  panoScene.add(sphere);
+
+  const loader = new THREE.TextureLoader();
+  loader.setCrossOrigin("anonymous");
+  loader.load(pano.url, texture => {
+    texture.colorSpace = THREE.SRGBColorSpace;
+    material.map = texture;
+    material.needsUpdate = true;
+    panoMessage.hidden = true;
+    const yaw = THREE.MathUtils.degToRad(Number(pano.initialYaw) || 0);
+    const pitch = THREE.MathUtils.degToRad(Number(pano.initialPitch) || 0);
+    panoCamera.position.set(
+      0.1 * Math.cos(pitch) * Math.sin(yaw),
+      0.1 * Math.sin(pitch),
+      0.1 * Math.cos(pitch) * Math.cos(yaw)
+    );
+    panoCamera.lookAt(0, 0, 0);
+    panoControls.update();
+  }, undefined, error => {
+    panoMessage.textContent = "Fotoğraf yüklenemedi. Bağlantı, paylaşım izni veya CORS ayarını kontrol edin.";
+    console.error("360 fotoğraf yüklenemedi:", error);
+  });
+
+  panoControls = new OrbitControls(panoCamera, panoRenderer.domElement);
+  panoControls.enablePan = false;
+  panoControls.enableZoom = false;
+  panoControls.rotateSpeed = 0.5;
+  panoControls.target.set(0, 0, 0);
+  panoControls.update();
+
+  const resize = () => {
+    if (!panoRenderer || !panoCamera) return;
+    const w = Math.max(panoCanvas.clientWidth, 1);
+    const h = Math.max(panoCanvas.clientHeight, 1);
+    panoCamera.aspect = w / h;
+    panoCamera.updateProjectionMatrix();
+    panoRenderer.setSize(w, h);
+  };
+  panoResizeObserver = new ResizeObserver(resize);
+  panoResizeObserver.observe(panoCanvas);
+  resize();
+
+  const renderPano = () => {
+    if (!panoRenderer || panoOverlay.hidden) return;
+    panoControls.update();
+    panoRenderer.render(panoScene, panoCamera);
+    panoAnimationFrame = requestAnimationFrame(renderPano);
+  };
+  renderPano();
+}
+
+function addArrow(spec, color, modelSize) {
+  if (!spec || !Array.isArray(spec.position) || spec.position.length !== 3 ||
+      !Array.isArray(spec.direction) || spec.direction.length !== 3) return;
+  const direction = new THREE.Vector3(...spec.direction);
+  direction.y = 0;
+  if (direction.lengthSq() < 0.0001) return;
+  direction.normalize();
+  const origin = new THREE.Vector3(...spec.position);
+  const length = Number(spec.length) || modelSize * 0.16;
+  const arrow = new THREE.ArrowHelper(
+    direction, origin, length, color,
+    Number(spec.headLength) || modelSize * 0.055,
+    Number(spec.headWidth) || modelSize * 0.045
+  );
+  arrow.userData.basePosition = origin.clone();
+  arrow.userData.moveDirection = direction.clone();
+  arrow.userData.moveAmount = Number(spec.moveAmount) || modelSize * 0.025;
+  featureGroup.add(arrow);
+  animatedArrows.push(arrow);
+}
+
+function setupModelFeatures(folder, name, size) {
+  if (featureGroup) {
+    scene.remove(featureGroup);
+    featureGroup.traverse(obj => {
+      if (obj.geometry) obj.geometry.dispose();
+      if (obj.material) {
+        const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+        mats.forEach(m => m.dispose());
+      }
+    });
+  }
+  featureGroup = new THREE.Group();
+  scene.add(featureGroup);
+  panoramaMarkers = [];
+  animatedArrows = [];
+
+  const cfg = getPortfolioConfig(folder, name);
+  const panoramas = Array.isArray(cfg.panoramas) ? cfg.panoramas : [];
+  panoramaButtons.replaceChildren();
+  panoramas.forEach((pano, index) => {
+    if (!pano || !pano.url) return;
+    const button = document.createElement("button");
+    button.className = "panorama-button";
+    button.type = "button";
+    button.textContent = "360° · " + (pano.title || `Oda ${index + 1}`);
+    button.addEventListener("click", () => openPanorama(pano));
+    panoramaButtons.appendChild(button);
+
+    if (Array.isArray(pano.position) && pano.position.length === 3) {
+      const marker = new THREE.Group();
+      const radius = Math.max(size.length() * 0.009, 0.045);
+      const sphere = new THREE.Mesh(
+        new THREE.SphereGeometry(radius, 20, 16),
+        new THREE.MeshBasicMaterial({ color: 0x19a7a0, depthTest: false })
+      );
+      sphere.userData.panorama = pano;
+      sphere.renderOrder = 20;
+      marker.add(sphere);
+      const ring = new THREE.Mesh(
+        new THREE.TorusGeometry(radius * 1.45, radius * 0.13, 8, 28),
+        new THREE.MeshBasicMaterial({ color: 0xffffff, depthTest: false })
+      );
+      ring.rotation.x = Math.PI / 2;
+      ring.renderOrder = 20;
+      marker.add(ring);
+      marker.position.set(...pano.position);
+      featureGroup.add(marker);
+      panoramaMarkers.push(sphere);
+    }
+  });
+  panoramaButtons.hidden = panoramaButtons.childElementCount === 0;
+
+  const isGround = folder && floorRank(name) === 1;
+  if (isGround && cfg.entranceArrow) addArrow(cfg.entranceArrow, 0xe31b32, size.length());
+  if (Array.isArray(cfg.stairArrows)) {
+    cfg.stairArrows.forEach(spec => addArrow(spec, 0x19a45b, size.length()));
+  }
+}
+
+function applyPlatformStyle(folder, name) {
+  if (!ground) return;
+  const isGround = folder && floorRank(name) === 1;
+  ground.visible = !isGround;
+  if (!ground.material?.uniforms?.color) return;
+  const cfg = getPortfolioConfig(folder, name);
+  const palette = {
+    0: "#fdf7f5", // Bodrum: çok açık pudra
+    2: "#f5f9fd", // 1. kat: çok açık buz mavisi
+    3: "#faf7fd", // 2. kat: çok açık lila
+    10: "#fbfaf6"
+  };
+  const color = (!folder || isGround) ? "#ffffff" : (cfg.platformColor || palette[floorRank(name)] || "#fbfaf6");
+  ground.material.uniforms.color.value.set(color);
+}
+
+function handlePanoramaMarkerClick(event) {
+  if (!panoramaMarkers.length || panoOverlay.hidden === false) return;
+  const rect = renderer.domElement.getBoundingClientRect();
+  const pointer = new THREE.Vector2(
+    ((event.clientX - rect.left) / rect.width) * 2 - 1,
+    -((event.clientY - rect.top) / rect.height) * 2 + 1
+  );
+  const raycaster = new THREE.Raycaster();
+  raycaster.setFromCamera(pointer, camera);
+  const hits = raycaster.intersectObjects(panoramaMarkers, false);
+  if (hits.length && hits[0].object.userData.panorama) {
+    openPanorama(hits[0].object.userData.panorama);
+  }
 }
 
 function resizeViewer() {
@@ -484,6 +874,7 @@ function initViewer() {
     THREE.PCFSoftShadowMap;
 
   viewer.appendChild(renderer.domElement);
+  renderer.domElement.addEventListener("click", handlePanoramaMarkerClick);
 
   scene.add(new THREE.HemisphereLight(
     0xffffff, 0xaaaaaa, 1.8
@@ -521,7 +912,7 @@ function initViewer() {
   ground.material.fragmentShader =
     ground.material.fragmentShader.replace(
       "blendOverlay( base.rgb, color )",
-      "mix(vec3(0.96), base.rgb, 0.13)"
+      "mix(color, base.rgb, 0.13)"
     );
 
   ground.material.needsUpdate = true;
@@ -657,6 +1048,17 @@ function animate() {
 
   }
 
+  if (animatedArrows.length) {
+    const t = clock.elapsedTime;
+    animatedArrows.forEach(arrow => {
+      const base = arrow.userData.basePosition;
+      const dir = arrow.userData.moveDirection;
+      arrow.position.copy(base).addScaledVector(
+        dir, Math.sin(t * 2.4) * arrow.userData.moveAmount
+      );
+    });
+  }
+
   controls.update();
 
   renderer.render(scene, camera);
@@ -750,6 +1152,10 @@ function disposeModel(model) {
 function openModel(folder, name) {
 
   initViewer();
+  currentFolder = folder;
+  currentFileName = name;
+  closePanorama();
+  applyMusic(folder, name);
 
   const requestID = ++loadID;
 
@@ -884,8 +1290,9 @@ obj.renderOrder = 10;
       model.position.y += 0.01;
 
       scene.add(model);
-      ground.visible = !(folder && /zemin/i.test(name));
-      if (folder && /zemin/i.test(name)) {
+      applyPlatformStyle(folder, name);
+      setupModelFeatures(folder, name, size);
+      if (folder && floorRank(name) === 1) {
 
   const garden = new THREE.Group();
 
@@ -1075,7 +1482,7 @@ async function openVilla(folder) {
 
   tour.hidden = false;
 
-  showTitle(folder);
+  showTitle(folder, folder);
 
   showStatus("Katlar yükleniyor...");
 
@@ -1092,14 +1499,12 @@ async function openVilla(folder) {
     );
 
     const models = files
-
-      .filter(f =>
-        f.type === "file" && isGLB(f.name)
-      )
-
-      .sort((a, b) =>
-        compareNames(a.name, b.name)
-      );
+      .filter(f => f.type === "file" && isGLB(f.name))
+      .sort((a, b) => {
+        const ra = floorRank(a.name);
+        const rb = floorRank(b.name);
+        return ra === rb ? compareNames(a.name, b.name) : ra - rb;
+      });
 
     if (!models.length) {
 
@@ -1115,6 +1520,8 @@ async function openVilla(folder) {
 
       floors.hidden = false;
 
+      const initialIndex = Math.max(0, models.findIndex(m => floorRank(m.name) === 1));
+
       models.forEach((model, index) => {
 
         const button =
@@ -1122,10 +1529,9 @@ async function openVilla(folder) {
 
         button.className = "floor-button";
 
-        button.textContent =
-          niceName(model.name);
+        button.textContent = floorLabel(model.name);
 
-        if (index === 0) {
+        if (index === initialIndex) {
 
           button.classList.add("active");
 
@@ -1156,7 +1562,8 @@ async function openVilla(folder) {
 
     }
 
-    openModel(folder, models[0].name);
+    const initialModel = models.find(m => floorRank(m.name) === 1) || models[0];
+    openModel(folder, initialModel.name);
 
   } catch {
 
@@ -1172,6 +1579,12 @@ function createItem(name, type, count) {
 
   const url = new URL("./", location.href);
   url.searchParams.set("v", "17005");
+  const shareConfig = type === "villa"
+    ? (appConfig.villas?.[name] || {})
+    : (appConfig.models?.[name] || {});
+  const shareUrl = shareConfig.sharePath
+    ? new URL(shareConfig.sharePath, location.href)
+    : null;
 
   if (type === "villa") {
 
@@ -1225,7 +1638,7 @@ function createItem(name, type, count) {
   const open = document.createElement("a");
 
   open.className = "open";
-  open.href = url.href;
+  open.href = shareUrl ? shareUrl.href : url.href;
   open.target = "_blank";
   open.rel = "noopener";
   open.textContent = "Görüntüle";
@@ -1238,7 +1651,7 @@ function createItem(name, type, count) {
 
     try {
 
-      await navigator.clipboard.writeText(url.href);
+      await navigator.clipboard.writeText((shareUrl || url).href);
 
       copy.textContent = "Kopyalandı ✓";
 
@@ -1250,7 +1663,7 @@ function createItem(name, type, count) {
 
     } catch {
 
-      prompt("Bağlantıyı kopyalayın:", url.href);
+      prompt("Bağlantıyı kopyalayın:", (shareUrl || url).href);
 
     }
 
@@ -1382,11 +1795,13 @@ async function loadModels() {
 
 }
 
+await loadAppConfig();
+
 if (file && isGLB(file)) {
 
   tour.hidden = false;
 
-  showTitle(file);
+  showTitle(file, null);
 
   openModel(null, file);
 
