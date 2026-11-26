@@ -809,47 +809,35 @@ function setupModelFeatures(folder, name, size) {
       const marker = new THREE.Group();
       const radius = Math.max(size.length() * 0.014, 0.055);
 
-      const base = new THREE.Mesh(
-        new THREE.CylinderGeometry(radius * 0.56, radius * 0.78, radius * 0.24, 32),
-        new THREE.MeshStandardMaterial({ color: 0x078fa9, roughness: 0.34, metalness: 0.08 })
-      );
-      base.position.y = radius * 0.18;
-      base.castShadow = true;
-      marker.add(base);
-
-      const ring = new THREE.Mesh(
-        new THREE.TorusGeometry(radius * 0.76, radius * 0.09, 10, 36),
-        new THREE.MeshBasicMaterial({ color: 0x7eeaf0, depthTest: false })
-      );
-      ring.rotation.x = Math.PI / 2;
-      ring.position.y = radius * 0.12;
-      ring.renderOrder = 20;
-      marker.add(ring);
-
+      // Tek, küçük 360° etiketi: zemine paralel; ayrı yuvarlak taban/halka yok.
       const hitTarget = new THREE.Mesh(
         new THREE.SphereGeometry(radius * 0.9, 18, 14),
-        new THREE.MeshBasicMaterial({ color: 0x078fa9, transparent: true, opacity: 0.02, depthTest: false })
+        new THREE.MeshBasicMaterial({ color: 0x078fa9, transparent: true, opacity: 0.001, depthTest: false })
       );
-      hitTarget.position.y = radius * 0.2;
+      hitTarget.position.y = radius * 0.12;
       hitTarget.userData.panorama = pano;
       hitTarget.renderOrder = 21;
       marker.add(hitTarget);
 
-      const badge = new THREE.Sprite(new THREE.SpriteMaterial({
-        map: createPanoramaBadgeTexture(),
-        transparent: true,
-        depthTest: false,
-        depthWrite: false
-      }));
-      badge.scale.set(radius * 3.35, radius * 1.68, 1);
-      badge.position.y = radius * 1.55;
+      const badge = new THREE.Mesh(
+        new THREE.PlaneGeometry(radius * 0.92, radius * 0.46),
+        new THREE.MeshBasicMaterial({
+          map: createPanoramaBadgeTexture(),
+          transparent: true,
+          side: THREE.DoubleSide,
+          depthTest: true,
+          depthWrite: false
+        })
+      );
+      badge.rotation.x = -Math.PI / 2;
+      badge.position.y = 0.012;
       badge.renderOrder = 22;
       badge.userData.panorama = pano;
       marker.add(badge);
 
       marker.position.set(...pano.position);
       marker.userData.baseY = marker.position.y;
-      marker.userData.floatHeight = radius * 0.10;
+      marker.userData.floatHeight = radius * 0.015;
       marker.userData.phase = index * 0.7;
       featureGroup.add(marker);
       panoramaMarkers.push(hitTarget, badge);
