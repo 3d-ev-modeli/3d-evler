@@ -215,7 +215,7 @@ def share_page(base_url, ref, title, image_url, dimensions, revision):
 <meta property="og:image:type" content="image/jpeg"><meta property="og:image:width" content="{dimensions[0]}"><meta property="og:image:height" content="{dimensions[1]}">
 <meta property="og:image:alt" content="{esc(title)}">
 <meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="Ref: {esc(ref)} | {esc(title)}"><meta name="twitter:image" content="{esc(image_url)}">
-</head><body style="margin:0;overflow:hidden"><iframe title="{esc(title)} · 3D sunum" src="../?villa=ref-{esc(ref)}" allow="autoplay; fullscreen" allowfullscreen style="display:block;width:100%;height:100vh;height:100dvh;border:0"></iframe></body></html>
+</head><body style="margin:0;overflow:hidden"><iframe title="{esc(title)} · 3D sunum" src="../?villa=ref-{esc(ref)}&amp;ui=c710b1b" allow="autoplay; fullscreen" allowfullscreen style="display:block;width:100%;height:100vh;height:100dvh;border:0"></iframe></body></html>
 '''
 
 
