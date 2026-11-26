@@ -80,9 +80,9 @@ button:disabled{opacity:.45;cursor:not-allowed}
 
     <label>Yerleşim özeti</label>
     <div id="summary">Henüz ok eklenmedi.</div>
-    <p class="small" style="margin:10px 0 0">Yerleşim tamamlandığında bu panelin ekran görüntüsünü bana gönder. Koordinatları portföy ayarlarına ben işleyeceğim; kod aramana veya kopyalayıp yapıştırmana gerek yok.</p>
+    <p class="small" style="margin:10px 0 0">Okları yerleştirince tüm katların konumlarını tek dosyada indir. Dosyayı bu sohbete yükle; GitHub ayarlarını ben güncelleyeceğim. Kod aramana veya kopyalayıp yapıştırmana gerek yok.</p>
     <div class="footer-actions">
-      <button id="downloadButton" class="primary" type="button">Konum dosyasını indir</button>
+      <button id="downloadButton" class="primary" type="button">Tüm katları indir</button>
       <button id="clearButton" class="danger" type="button">Bu kattaki okları temizle</button>
     </div>
   </aside>
@@ -95,8 +95,8 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 const DEFAULT_FOLDER = "057-Beylikdüzü Gürpınar - 6+1 Villa";
 const params = new URLSearchParams(location.search);
 const folder = params.get("villa") || DEFAULT_FOLDER;
-const API = "https://api.github.com/repos/3d-ev-modeli/3d-evler";
 const floorNames = ["bodrum kat.glb","zemin.glb","1. kat.glb"];
+const STORAGE_KEY = "3d-ev-arrow-editor:" + folder;
 
 const viewer = document.getElementById("viewer");
 const statusBox = document.getElementById("status");
@@ -125,8 +125,7 @@ function floorConfig(name){
   return base.floors && base.floors[name] ? base.floors[name] : {};
 }
 
-function currentPlacements(){
-  const name = floorSelect.value;
+function placementsForFloor(name){
   if(!placementsByFloor[name]){
     const cfg = floorConfig(name);
     const items = [];
@@ -135,6 +134,30 @@ function currentPlacements(){
     placementsByFloor[name] = items;
   }
   return placementsByFloor[name];
+}
+
+function currentPlacements(){
+  return placementsForFloor(floorSelect.value);
+}
+
+function restoreDraft(){
+  try{
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
+    if(!saved || typeof saved !== "object") return;
+    floorNames.forEach(name => {
+      if(Array.isArray(saved[name])) placementsByFloor[name] = saved[name];
+    });
+  }catch(error){
+    console.warn("Yerel ok taslağı okunamadı.",error);
+  }
+}
+
+function saveDraft(){
+  try{
+    localStorage.setItem(STORAGE_KEY,JSON.stringify(placementsByFloor));
+  }catch(error){
+    console.warn("Yerel ok taslağı kaydedilemedi.",error);
+  }
 }
 
 function initViewer(){
@@ -198,6 +221,7 @@ function drawPlacements(){
     arrowGroup.add(marker);
   }
   renderSummary();
+  saveDraft();
 }
 
 function renderSummary(){
@@ -253,10 +277,17 @@ function handleModelClick(event){
     headWidth:modelSize.length()*0.045,
     moveAmount:modelSize.length()*0.025
   };
-  currentPlacements().push({kind:activeKind,spec});
+  const placements=currentPlacements();
+  if(activeKind==="entrance"){
+    const existing=placements.findIndex(item=>item.kind==="entrance");
+    if(existing>=0) placements[existing]={kind:activeKind,spec};
+    else placements.push({kind:activeKind,spec});
+  }else{
+    placements.push({kind:activeKind,spec});
+  }
   pendingStart=null;
   stepText.textContent="Yeni bir ok eklemek için tekrar zemine tıkla.";
-  setStatus(activeKind==="entrance"?"Giriş oku eklendi.":"Merdiven oku eklendi.");
+  setStatus(activeKind==="entrance"?"Giriş oku eklendi/güncellendi.":"Merdiven oku eklendi.");
   drawPlacements();
 }
 
@@ -346,20 +377,24 @@ document.getElementById("clearButton").addEventListener("click",()=>{
   setStatus("Bu kattaki oklar temizlendi.");
 });
 document.getElementById("downloadButton").addEventListener("click",()=>{
-  const name=floorSelect.value;
-  const items=currentPlacements();
-  const output={villa:folder,floor:name,entranceArrow:null,stairArrows:[]};
-  items.forEach(item=>{
-    if(item.kind==="entrance") output.entranceArrow=item.spec;
-    else output.stairArrows.push(item.spec);
+  const output={villa:folder,floors:{}};
+  floorNames.forEach(name=>{
+    const items=placementsForFloor(name);
+    const floor={entranceArrow:null,stairArrows:[]};
+    items.forEach(item=>{
+      if(item.kind==="entrance") floor.entranceArrow=item.spec;
+      else floor.stairArrows.push(item.spec);
+    });
+    output.floors[name]=floor;
   });
   const blob=new Blob([JSON.stringify(output,null,2)],{type:"application/json"});
   const url=URL.createObjectURL(blob);
   const a=document.createElement("a");
   a.href=url;
-  a.download="ref-057-"+name.replace(/[^a-z0-9]+/gi,"-").toLowerCase()+"-ok-konumlari.json";
+  a.download="ref-057-ok-konumlari.json";
   a.click();
   URL.revokeObjectURL(url);
+  setStatus("Üç katın ok konumları tek JSON dosyasına aktarıldı.");
 });
 
 async function start(){
@@ -367,6 +402,7 @@ async function start(){
     const response=await fetch("./config/portfolios.json?rev="+Date.now());
     if(response.ok) appConfig=await response.json();
   }catch(error){console.warn("Portföy ayarları okunamadı.",error);}
+  restoreDraft();
   const requested=params.get("floor");
   if(requested && floorNames.includes(requested)) floorSelect.value=requested;
   initViewer();
