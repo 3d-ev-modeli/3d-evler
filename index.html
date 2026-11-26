@@ -743,7 +743,7 @@ function addArrow(spec, color, modelSize) {
   );
   arrow.userData.basePosition = arrow.position.clone();
   arrow.userData.moveDirection = direction.clone();
-  arrow.userData.moveAmount = Number(spec.moveAmount) || length * 0.012;
+  arrow.userData.moveAmount = Math.max(Number(spec.moveAmount) || 0, length * 0.12);
   arrow.castShadow = true;
   arrow.receiveShadow = true;
   featureGroup.add(arrow);
