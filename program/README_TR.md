@@ -25,10 +25,12 @@ Program, yeni portföylerin eklenmesi için temiz durumdadır. Deneme portföyle
 Müzik ilk kullanıcı etkileşiminde başlamayı dener ve döngüde çalar.
 Program internet üzerinden kullanılan Three.js ve GitHub dosya listesine ihtiyaç duyar; dosyaya çift tıklamak yerine yayımlanan siteyi kullanın.
 
-## Drive otomasyonu durumu
+## Drive'dan komutla aktarım
 
-Drive'a eklenen dosyaları otomatik olarak GitHub'a taşıyan sistem henüz kurulmamıştır.
-Drive klasörüne dosya koymak tek başına sitedeki veriyi değiştirmez.
-Kapak, müzik ve 360 işaret eşleştirmelerinin otomatik güncellenmesi sonraki kurulum adımıdır.
+GitHub Actions içinde “Portföyü Drive'dan aktar” işlemi eklenmiştir. Drive klasör bağlantısı girilerek kapak, müzik, kat modelleri ve 360 fotoğraflar alınabilir.
+
+Bir defalık GOOGLE_DRIVE_API_KEY ayarı tamamlanmalıdır. Kullanım ve 360 işaret eşleştirmesi için [DRIVE_KULLANIM.md](DRIVE_KULLANIM.md) dosyasını okuyun. İşlem kendiliğinden klasör izlemez; her güncellemede GitHub'dan komut verilmelidir.
+
+Yeni 360 fotoğrafların model üzerindeki yeri ilk seferde düzenleyicide belirlenip isaretler.json ile aktarılır. Dosya kimliği veya aynı kat içindeki dosya adı korunduğunda mevcut konum korunur.
 
 Temizlik Drive dosyalarını veya Git geçmişini silmez.
