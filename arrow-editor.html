@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>3D Ev Modeli · Ok Yerleşimi</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#f4f5f7;color:#25282c;font-family:"Segoe UI",Arial,sans-serif}
+header{padding:16px 22px;background:#fff;border-bottom:1px solid #e3e5e8;display:flex;align-items:center;justify-content:space-between;gap:12px}
+header strong{font-size:18px}
+header a{color:#176b43;text-decoration:none;font-size:14px}
+main{max-width:1450px;margin:0 auto;padding:18px;display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:16px}
+#viewerCard,#panel{background:#fff;border:1px solid #e0e2e5;border-radius:14px;overflow:hidden}
+#viewer{height:min(76vh,850px);min-height:460px;position:relative;background:#fff}
+#viewer canvas{display:block;width:100%;height:100%;touch-action:none}
+#status{position:absolute;left:12px;bottom:12px;z-index:2;background:rgba(255,255,255,.94);border:1px solid #ddd;border-radius:8px;padding:9px 12px;font-size:13px;max-width:calc(100% - 24px)}
+#panel{padding:18px;align-self:start}
+h1{font-size:19px;margin:0 0 7px}
+.muted{color:#707780;font-size:13px;line-height:1.5;margin:0 0 18px}
+label{display:block;font-size:13px;font-weight:600;margin:15px 0 7px}
+select,button{font:inherit}
+select{width:100%;padding:10px;border:1px solid #d6d9dd;border-radius:8px;background:#fff;color:#25282c}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+button{border:0;border-radius:8px;padding:10px 12px;background:#edf0f2;color:#30343a;cursor:pointer}
+button.active{background:#333;color:#fff;box-shadow:inset 0 0 0 2px #111}
+button.primary{background:#176b43;color:#fff}
+button.danger{background:#fae9ea;color:#b51f2a}
+button:disabled{opacity:.45;cursor:not-allowed}
+#instructions{background:#f5f7f8;border-radius:9px;padding:12px;font-size:13px;line-height:1.55;margin:14px 0}
+#instructions b{display:block;margin-bottom:5px}
+#step{font-weight:600;color:#176b43;margin-top:8px}
+#summary{font:12px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace;background:#f7f8f9;border:1px solid #e5e7e9;border-radius:8px;padding:10px;white-space:pre-wrap;overflow-wrap:anywhere;max-height:230px;overflow:auto}
+.small{font-size:12px;color:#707780;line-height:1.45}
+.footer-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+@media(max-width:900px){main{grid-template-columns:1fr;padding:10px}#viewer{height:58vh;min-height:360px}#panel{order:-1}header{padding:12px 14px}}
+</style>
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}
+</script>
+</head>
+<body>
+<header>
+  <strong>3D Ev Modeli · Ok Yerleşimi</strong>
+  <a id="backLink" href="./">← 3D model listesine dön</a>
+</header>
+<main>
+  <section id="viewerCard">
+    <div id="viewer"><div id="status">Model yükleniyor…</div></div>
+  </section>
+  <aside id="panel">
+    <h1>Okları yerleştir</h1>
+    <p class="muted">Modelin üzerinde önce okun başlayacağı noktaya, sonra okun göstereceği yöne tıkla. Normal ziyaretçi sayfasının görünümü bu araçtan etkilenmez.</p>
+
+    <label for="floorSelect">Kat</label>
+    <select id="floorSelect">
+      <option value="bodrum kat.glb">Bodrum</option>
+      <option value="zemin.glb" selected>Zemin</option>
+      <option value="1. kat.glb">1. Kat</option>
+    </select>
+
+    <label>Yerleştirilecek ok</label>
+    <div class="actions">
+      <button id="entranceMode" class="active" type="button">Giriş oku · kırmızı</button>
+      <button id="stairMode" type="button">Merdiven · yeşil</button>
+    </div>
+
+    <div id="instructions">
+      <b>Nasıl yerleştireceğiz?</b>
+      1. Okun çıkacağı zemine tıkla.<br>
+      2. Okun başının bakacağı noktaya tıkla.<br>
+      3. Oku model üzerinde kontrol et. Gerekirse son oku geri al.
+      <div id="step">İlk tıklama: okun başlangıç noktasını seç.</div>
+    </div>
+
+    <div class="footer-actions">
+      <button id="undoButton" type="button">Son oku geri al</button>
+      <button id="cancelButton" type="button">İlk noktayı iptal et</button>
+    </div>
+
+    <label>Yerleşim özeti</label>
+    <div id="summary">Henüz ok eklenmedi.</div>
+    <p class="small" style="margin:10px 0 0">Yerleşim tamamlandığında bu panelin ekran görüntüsünü bana gönder. Koordinatları portföy ayarlarına ben işleyeceğim; kod aramana veya kopyalayıp yapıştırmana gerek yok.</p>
+    <div class="footer-actions">
+      <button id="downloadButton" class="primary" type="button">Konum dosyasını indir</button>
+      <button id="clearButton" class="danger" type="button">Bu kattaki okları temizle</button>
+    </div>
+  </aside>
+</main>
+<script type="module">
+import * as THREE from "three";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+const DEFAULT_FOLDER = "057-Beylikdüzü Gürpınar - 6+1 Villa";
+const params = new URLSearchParams(location.search);
+const folder = params.get("villa") || DEFAULT_FOLDER;
+const API = "https://api.github.com/repos/3d-ev-modeli/3d-evler";
+const floorNames = ["bodrum kat.glb","zemin.glb","1. kat.glb"];
+
+const viewer = document.getElementById("viewer");
+const statusBox = document.getElementById("status");
+const floorSelect = document.getElementById("floorSelect");
+const summary = document.getElementById("summary");
+const stepText = document.getElementById("step");
+const entranceMode = document.getElementById("entranceMode");
+const stairMode = document.getElementById("stairMode");
+
+document.getElementById("backLink").href = "./?villa=" + encodeURIComponent(folder);
+
+let appConfig = {villas:{}};
+let scene, camera, renderer, controls, currentModel = null, arrowGroup;
+let modelSize = new THREE.Vector3();
+let activeKind = "entrance";
+let pendingStart = null;
+let placementsByFloor = {};
+let pointerStart = null;
+const raycaster = new THREE.Raycaster();
+const pointer = new THREE.Vector2();
+
+function setStatus(message){ statusBox.textContent = message; }
+
+function floorConfig(name){
+  const base = appConfig.villas && appConfig.villas[folder] ? appConfig.villas[folder] : {};
+  return base.floors && base.floors[name] ? base.floors[name] : {};
+}
+
+function currentPlacements(){
+  const name = floorSelect.value;
+  if(!placementsByFloor[name]){
+    const cfg = floorConfig(name);
+    const items = [];
+    if(cfg.entranceArrow) items.push({kind:"entrance",spec:structuredClone(cfg.entranceArrow)});
+    (Array.isArray(cfg.stairArrows) ? cfg.stairArrows : []).forEach(spec => items.push({kind:"stair",spec:structuredClone(spec)}));
+    placementsByFloor[name] = items;
+  }
+  return placementsByFloor[name];
+}
+
+function initViewer(){
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0xffffff);
+  camera = new THREE.PerspectiveCamera(40,1,0.01,200);
+  camera.position.set(0,10,10);
+  renderer = new THREE.WebGLRenderer({antialias:true});
+  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  viewer.appendChild(renderer.domElement);
+  scene.add(new THREE.HemisphereLight(0xffffff,0xaaaaaa,1.8));
+  const light = new THREE.DirectionalLight(0xffffff,2);
+  light.position.set(5,10,5);
+  scene.add(light);
+  const fill = new THREE.DirectionalLight(0xffffff,0.5);
+  fill.position.set(-5,6,-5);
+  scene.add(fill);
+  controls = new OrbitControls(camera,renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.06;
+  controls.maxPolarAngle = Math.PI/2-0.02;
+  arrowGroup = new THREE.Group();
+  scene.add(arrowGroup);
+  renderer.domElement.addEventListener("pointerdown",e => {pointerStart={x:e.clientX,y:e.clientY};});
+  renderer.domElement.addEventListener("click",handleModelClick);
+  window.addEventListener("resize",resize);
+  resize();
+  animate();
+}
+
+function resize(){
+  if(!renderer) return;
+  const w=Math.max(viewer.clientWidth,1), h=Math.max(viewer.clientHeight,1);
+  camera.aspect=w/h; camera.updateProjectionMatrix(); renderer.setSize(w,h);
+}
+
+function animate(){
+  requestAnimationFrame(animate);
+  if(controls) controls.update();
+  if(renderer && scene && camera) renderer.render(scene,camera);
+}
+
+function arrowColor(kind){return kind==="entrance" ? 0xe31b32 : 0x19a45b;}
+
+function drawPlacements(){
+  arrowGroup.clear();
+  currentPlacements().forEach(item => {
+    const spec=item.spec;
+    if(!spec || !Array.isArray(spec.position) || !Array.isArray(spec.direction)) return;
+    const direction=new THREE.Vector3(spec.direction[0],0,spec.direction[2]);
+    if(direction.lengthSq()<0.0001) return;
+    direction.normalize();
+    const length=Number(spec.length)||modelSize.length()*0.16;
+    const arrow=new THREE.ArrowHelper(direction,new THREE.Vector3(...spec.position),length,arrowColor(item.kind),Number(spec.headLength)||modelSize.length()*0.055,Number(spec.headWidth)||modelSize.length()*0.045);
+    arrowGroup.add(arrow);
+  });
+  if(pendingStart){
+    const marker=new THREE.Mesh(new THREE.SphereGeometry(Math.max(modelSize.length()*0.012,0.035),18,14),new THREE.MeshBasicMaterial({color:arrowColor(activeKind),depthTest:false}));
+    marker.position.copy(pendingStart);
+    marker.renderOrder=30;
+    arrowGroup.add(marker);
+  }
+  renderSummary();
+}
+
+function renderSummary(){
+  const items=currentPlacements();
+  if(!items.length){summary.textContent="Henüz ok eklenmedi.";return;}
+  summary.textContent=items.map((item,index)=>{
+    const p=item.spec.position, d=item.spec.direction;
+    const label=item.kind==="entrance"?"GİRİŞ":"MERDİVEN";
+    return (index+1)+". "+label+"\nKonum: ["+p.map(v=>Number(v).toFixed(3)).join(", ")+"]\nYön: ["+d.map(v=>Number(v).toFixed(3)).join(", ")+"]";
+  }).join("\n\n");
+}
+
+function handleModelClick(event){
+  if(!currentModel || !pointerStart) return;
+  const moved=Math.hypot(event.clientX-pointerStart.x,event.clientY-pointerStart.y);
+  pointerStart=null;
+  if(moved>6) return;
+  const rect=renderer.domElement.getBoundingClientRect();
+  pointer.set(((event.clientX-rect.left)/rect.width)*2-1,-((event.clientY-rect.top)/rect.height)*2+1);
+  raycaster.setFromCamera(pointer,camera);
+  const hits=raycaster.intersectObject(currentModel,true);
+  let hit=null;
+  for(const candidate of hits){
+    if(!candidate.face) continue;
+    const normalMatrix=new THREE.Matrix3().getNormalMatrix(candidate.object.matrixWorld);
+    const normal=candidate.face.normal.clone().applyMatrix3(normalMatrix).normalize();
+    if(normal.y>0.55){hit=candidate;break;}
+  }
+  if(!hit){
+    setStatus("Lütfen duvarı değil, zeminin yatay yüzeyini seç. Kamerayı biraz yaklaştırabilirsin.");
+    return;
+  }
+  const point=hit.point.clone();
+  point.y+=Math.max(modelSize.length()*0.006,0.018);
+  if(!pendingStart){
+    pendingStart=point;
+    stepText.textContent="İkinci tıklama: okun başının bakacağı yönü seç.";
+    setStatus("Başlangıç noktası seçildi. Şimdi okun göstereceği yöne tıkla.");
+    drawPlacements();
+    return;
+  }
+  const direction=new THREE.Vector3(point.x-pendingStart.x,0,point.z-pendingStart.z);
+  if(direction.length()<Math.max(modelSize.length()*0.025,0.06)){
+    setStatus("İki nokta birbirine çok yakın. Ok yönünü belirlemek için biraz daha uzağa tıkla.");
+    return;
+  }
+  direction.normalize();
+  const spec={
+    position:[pendingStart.x,pendingStart.y,pendingStart.z],
+    direction:[direction.x,0,direction.z],
+    length:modelSize.length()*0.16,
+    headLength:modelSize.length()*0.055,
+    headWidth:modelSize.length()*0.045,
+    moveAmount:modelSize.length()*0.025
+  };
+  currentPlacements().push({kind:activeKind,spec});
+  pendingStart=null;
+  stepText.textContent="Yeni bir ok eklemek için tekrar zemine tıkla.";
+  setStatus(activeKind==="entrance"?"Giriş oku eklendi.":"Merdiven oku eklendi.");
+  drawPlacements();
+}
+
+async function loadFloor(name){
+  setStatus("Kat modeli yükleniyor…");
+  pendingStart=null;
+  if(currentModel){
+    scene.remove(currentModel);
+    currentModel.traverse(obj=>{
+      if(obj.geometry) obj.geometry.dispose();
+      if(obj.material){
+        const mats=Array.isArray(obj.material)?obj.material:[obj.material];
+        mats.forEach(m=>m.dispose());
+      }
+    });
+    currentModel=null;
+  }
+  arrowGroup.clear();
+  try{
+    const url="./"+encodeURIComponent(folder)+"/"+encodeURIComponent(name);
+    const gltf=await new GLTFLoader().loadAsync(url);
+    const model=gltf.scene;
+    const box=new THREE.Box3().setFromObject(model);
+    const center=box.getCenter(new THREE.Vector3());
+    const size=box.getSize(new THREE.Vector3());
+    model.position.x-=center.x;
+    model.position.z-=center.z;
+    model.position.y-=box.min.y;
+    model.position.y+=0.01;
+    scene.add(model);
+    currentModel=model;
+    modelSize.copy(size);
+    const d=Math.max(size.x,size.y,size.z,0.1);
+    const radius=size.length()/2;
+    const vfov=THREE.MathUtils.degToRad(camera.fov);
+    const hfov=2*Math.atan(Math.tan(vfov/2)*camera.aspect);
+    const limiting=Math.min(vfov,hfov);
+    const baseDistance=Math.max(d*1.6*Math.SQRT2, radius/Math.sin(limiting/2)*1.15);
+    const h=baseDistance/Math.SQRT2;
+    controls.target.set(0,size.y/2,0);
+    camera.position.set(0,size.y/2+h,h);
+    camera.near=Math.max(d/1000,0.001);
+    camera.far=Math.max(200,baseDistance*10);
+    camera.updateProjectionMatrix();
+    controls.minDistance=d*0.15;
+    controls.maxDistance=baseDistance*4;
+    controls.update();
+    drawPlacements();
+    setStatus("Model hazır. Oku yerleştirmek için zemine tıkla.");
+  }catch(error){
+    console.error(error);
+    setStatus("Model yüklenemedi. Kat dosyasını ve bağlantıyı kontrol et.");
+  }
+}
+
+function setKind(kind){
+  activeKind=kind;
+  entranceMode.classList.toggle("active",kind==="entrance");
+  stairMode.classList.toggle("active",kind==="stair");
+  pendingStart=null;
+  stepText.textContent="İlk tıklama: okun başlangıç noktasını seç.";
+  drawPlacements();
+}
+
+entranceMode.addEventListener("click",()=>setKind("entrance"));
+stairMode.addEventListener("click",()=>setKind("stair"));
+floorSelect.addEventListener("change",()=>loadFloor(floorSelect.value));
+document.getElementById("undoButton").addEventListener("click",()=>{
+  const items=currentPlacements();
+  items.pop();
+  pendingStart=null;
+  stepText.textContent="İlk tıklama: okun başlangıç noktasını seç.";
+  drawPlacements();
+  setStatus("Son ok geri alındı.");
+});
+document.getElementById("cancelButton").addEventListener("click",()=>{
+  pendingStart=null;
+  stepText.textContent="İlk tıklama: okun başlangıç noktasını seç.";
+  drawPlacements();
+  setStatus("Bekleyen başlangıç noktası iptal edildi.");
+});
+document.getElementById("clearButton").addEventListener("click",()=>{
+  if(!confirm("Seçili kattaki okların tamamı temizlensin mi?")) return;
+  placementsByFloor[floorSelect.value]=[];
+  pendingStart=null;
+  drawPlacements();
+  setStatus("Bu kattaki oklar temizlendi.");
+});
+document.getElementById("downloadButton").addEventListener("click",()=>{
+  const name=floorSelect.value;
+  const items=currentPlacements();
+  const output={villa:folder,floor:name,entranceArrow:null,stairArrows:[]};
+  items.forEach(item=>{
+    if(item.kind==="entrance") output.entranceArrow=item.spec;
+    else output.stairArrows.push(item.spec);
+  });
+  const blob=new Blob([JSON.stringify(output,null,2)],{type:"application/json"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url;
+  a.download="ref-057-"+name.replace(/[^a-z0-9]+/gi,"-").toLowerCase()+"-ok-konumlari.json";
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+async function start(){
+  try{
+    const response=await fetch("./config/portfolios.json?rev="+Date.now());
+    if(response.ok) appConfig=await response.json();
+  }catch(error){console.warn("Portföy ayarları okunamadı.",error);}
+  const requested=params.get("floor");
+  if(requested && floorNames.includes(requested)) floorSelect.value=requested;
+  initViewer();
+  await loadFloor(floorSelect.value);
+}
+
+start();
+</script>
+</body>
+</html>
