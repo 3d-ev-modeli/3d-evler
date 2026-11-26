@@ -287,6 +287,28 @@ button, .open {
   .floor-button { padding: 7px 9px; }
 }
 
+#tourClose {
+  position: fixed;
+  top: max(10px, env(safe-area-inset-top));
+  right: max(10px, env(safe-area-inset-right));
+  z-index: 1000;
+  margin: 0;
+  padding: 6px 9px;
+  min-height: 32px;
+  border: 1px solid #dedede;
+  border-radius: 16px;
+  background: rgba(255,255,255,.95);
+  color: #555;
+  font: 12px "Segoe UI", Arial, sans-serif;
+}
+#tourClose:focus-visible { outline: 2px solid #078fa9; outline-offset: 3px; }
+#tourClosed { padding: 64px 20px; text-align: center; color: #555; }
+#tourClosed p { font-size: 14px; }
+#reopenTour { font-size: 13px; }
+@media (max-width: 600px) {
+  #propertyTitle { padding-left: 80px; padding-right: 80px; }
+}
+
 [hidden] {
   display: none !important;
 }
@@ -306,6 +328,7 @@ button, .open {
 <body>
 
 <div id="tour" hidden>
+  <button id="tourClose" type="button" aria-label="3D sunumu kapat">× Kapat</button>
 
   <div id="propertyTitle" hidden></div>
   <div id="floors" hidden></div>
@@ -339,6 +362,11 @@ button, .open {
   </div>
 
 </div>
+
+<section id="tourClosed" hidden role="status">
+  <p>Sunum kapatıldı. Bu sekmeyi kapatabilirsiniz.</p>
+  <button id="reopenTour" type="button">Yeniden aç</button>
+</section>
 
 <audio id="backgroundMusic" loop playsinline preload="auto"></audio>
 
@@ -401,6 +429,36 @@ const panoCanvas = document.getElementById("panoCanvas");
 const panoTitle = document.getElementById("panoTitle");
 const panoMessage = document.getElementById("panoMessage");
 const panoClose = document.getElementById("panoClose");
+
+let tourClosed = false;
+document.getElementById("reopenTour").addEventListener("click", () => location.reload());
+document.getElementById("tourClose").addEventListener("click", closeTour);
+
+function closeTour() {
+  if (tourClosed) return;
+  tourClosed = true;
+  ++loadID;
+  ++musicRequest;
+  musicNeedsGesture = false;
+  cinematicActive = false;
+  clearTimeout(resumeTimer);
+  closePanorama();
+  backgroundMusic.pause();
+  backgroundMusic.removeAttribute("src");
+  delete backgroundMusic.dataset.url;
+  backgroundMusic.load();
+  if (controls) controls.dispose();
+  if (renderer) renderer.dispose();
+  tour.hidden = true;
+  document.getElementById("tourClosed").hidden = false;
+  document.getElementById("reopenTour").focus();
+  // Shared links embed the viewer; leave the whole presentation, not just its iframe.
+  let host = window;
+  try {
+    if (window.top.location.origin === location.origin) host = window.top;
+  } catch { /* Cross-origin embeds retain the local closed screen. */ }
+  if (host.history.length > 1) host.history.back();
+}
 
 let scene, camera, renderer, controls, ground;
 let featureGroup = null;
@@ -603,6 +661,7 @@ function musicUrl(value) {
 }
 function syncMusicControl() {}
 async function startMusic() {
+  if (tourClosed) return;
   const request = ++musicRequest;
   musicMessage.textContent = "";
   try {
@@ -621,6 +680,7 @@ async function startMusic() {
   }
 }
 function applyMusic(folder, name) {
+  if (tourClosed) return;
   // Only this portfolio (or its floor) supplies the track; never use a shared fallback.
   const url = musicUrl(getPortfolioConfig(folder, name).musicUrl);
   musicControls.hidden = !url;
@@ -644,7 +704,8 @@ function applyMusic(folder, name) {
   syncMusicControl();
   musicNeedsGesture = true;
 }
-function resumeMusicOnGesture() {
+function resumeMusicOnGesture(event) {
+  if (tourClosed || event.target.closest?.("#tourClose")) return;
   if (!musicNeedsGesture || !backgroundMusic.dataset.url) return;
   musicNeedsGesture = false;
   void startMusic();
@@ -1221,6 +1282,7 @@ function initViewer() {
 }
 
 function animate() {
+  if (tourClosed) return;
 
   requestAnimationFrame(animate);
 
@@ -1392,6 +1454,7 @@ function disposeModel(model) {
 }
 
 function openModel(folder, name) {
+  if (tourClosed) return;
 
   initViewer();
   currentFolder = folder;
@@ -1719,6 +1782,7 @@ for (let i = 0; i < 5; i++) {
 }
 
 async function openVilla(folder) {
+  if (tourClosed) return;
 
   tour.hidden = false;
 
@@ -1738,6 +1802,7 @@ async function openVilla(folder) {
 
     );
 
+    if (tourClosed) return;
     const models = files
       .filter(f => f.type === "file" && isGLB(f.name))
       .sort((a, b) => {
@@ -2042,7 +2107,7 @@ if (villa && !appConfig.villas?.[villa]) {
   if (replacement) villa = replacement[0];
 }
 
-if (file && isGLB(file)) {
+if (!tourClosed && file && isGLB(file)) {
 
   tour.hidden = false;
 
@@ -2050,15 +2115,16 @@ if (file && isGLB(file)) {
 
   openModel(null, file);
 
-} else if (villa && safeName(villa)) {
+} else if (!tourClosed && villa && safeName(villa)) {
 
   openVilla(villa);
 
 } else {
 
-  panel.hidden = false;
-
-  loadModels();
+  if (!tourClosed) {
+    panel.hidden = false;
+    loadModels();
+  }
 
 }
 
