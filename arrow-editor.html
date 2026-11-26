@@ -71,22 +71,26 @@ input[type=range]{width:100%;accent-color:#176b43;cursor:pointer}
     <div id="instructions">
       <b>Üç basit adım</b>
       1. Giriş veya merdiven okunu seç.<br>
-      2. “Konum seç”e basıp modelde zemine bir kez tıkla.<br>
-      3. Boyut ve yön kaydırıcılarıyla son hâlini ver.
-      <div id="step">Önce “Modelde konum seç” düğmesine bas.</div>
+      2. “Yeni ok yerleştir”e basıp modelde zemine bir kez tıkla.<br>
+      3. Boyut ve yönünü ayarla. Yerini değiştirmek için oku seçip “Seçili okun yerini değiştir”e bas.
+      <div id="step">Önce “Yeni ok yerleştir” düğmesine bas.</div>
     </div>
 
     <label for="arrowSelect">Düzenlenecek ok</label>
     <select id="arrowSelect" disabled><option>Henüz ok yok</option></select>
 
     <div class="footer-actions">
-      <button id="placeArrowButton" class="primary" type="button">Modelde konum seç</button>
+      <button id="placeArrowButton" class="primary" type="button">Yeni ok yerleştir</button>
+      <button id="moveArrowButton" type="button" disabled>Seçili okun yerini değiştir</button>
+    </div>
+    <div class="footer-actions">
       <button id="deleteArrowButton" class="danger" type="button" disabled>Seçili oku sil</button>
+      <button id="cancelPlacementButton" type="button" disabled>İptal et</button>
     </div>
 
     <label for="sizeSlider">Ok boyutu</label>
     <div class="range-row">
-      <input id="sizeSlider" type="range" min="0.50" max="2.50" step="0.05" value="1" disabled>
+      <input id="sizeSlider" type="range" min="0.05" max="2.50" step="0.01" value="1" disabled>
       <span id="sizeValue" class="range-value">—</span>
     </div>
 
@@ -126,6 +130,8 @@ const stairMode = document.getElementById("stairMode");
 const arrowSelect = document.getElementById("arrowSelect");
 const placeArrowButton = document.getElementById("placeArrowButton");
 const deleteArrowButton = document.getElementById("deleteArrowButton");
+const moveArrowButton = document.getElementById("moveArrowButton");
+const cancelPlacementButton = document.getElementById("cancelPlacementButton");
 const sizeSlider = document.getElementById("sizeSlider");
 const sizeValue = document.getElementById("sizeValue");
 const rotationSlider = document.getElementById("rotationSlider");
@@ -138,6 +144,7 @@ let scene, camera, renderer, controls, currentModel = null, arrowGroup;
 let modelSize = new THREE.Vector3();
 let activeKind = "entrance";
 let placementArmed = false;
+let placementAction = "new";
 let selectedIndex = -1;
 let baseArrowLength = 1;
 let placementsByFloor = {};
@@ -159,6 +166,10 @@ function placementsForFloor(name){
     const items=[];
     if(cfg.entranceArrow) items.push({kind:"entrance",spec:structuredClone(cfg.entranceArrow)});
     (Array.isArray(cfg.stairArrows)?cfg.stairArrows:[]).forEach(spec=>items.push({kind:"stair",spec:structuredClone(spec)}));
+    items.forEach(item=>{
+      const length=Number(item.spec?.length)||modelSize.length()*0.22;
+      if(!item.spec.moveAmount || item.spec.moveAmount<length*0.05) item.spec.moveAmount=length*0.12;
+    });
     placementsByFloor[name]=items;
   }
   return placementsByFloor[name];
@@ -218,7 +229,7 @@ function makeArrowMesh(item,index){
   );
   mesh.userData.basePosition=mesh.position.clone();
   mesh.userData.moveDirection=direction;
-  mesh.userData.moveAmount=Number(spec.moveAmount)||length*0.012;
+  mesh.userData.moveAmount=Number(spec.moveAmount)||length*0.12;
   mesh.castShadow=true;
   mesh.receiveShadow=true;
   return mesh;
@@ -230,12 +241,14 @@ function syncArrowControls(){
   sizeSlider.disabled=!has;
   rotationSlider.disabled=!has;
   deleteArrowButton.disabled=!has;
+  moveArrowButton.disabled=!has;
+  cancelPlacementButton.disabled=!placementArmed;
   if(!has){
     sizeValue.textContent="—";
     rotationValue.textContent="—";
     return;
   }
-  const factor=THREE.MathUtils.clamp((Number(item.spec.length)||baseArrowLength)/baseArrowLength,0.5,2.5);
+  const factor=THREE.MathUtils.clamp((Number(item.spec.length)||baseArrowLength)/baseArrowLength,0.05,2.5);
   sizeSlider.value=String(factor);
   sizeValue.textContent=factor.toFixed(2).replace(".",",")+"×";
   const d=new THREE.Vector3(item.spec.direction[0],0,item.spec.direction[2]).normalize();
@@ -316,14 +329,34 @@ function handleModelClick(event){
     return;
   }
   const point=hit.point.clone();
+  const placements=currentPlacements();
+
+  if(placementAction==="move"){
+    const selected=placements[selectedIndex];
+    if(!selected){
+      placementArmed=false;
+      drawPlacements();
+      setStatus("Önce taşınacak oku seç.");
+      return;
+    }
+    selected.spec.position=[point.x,point.y,point.z];
+    selected.spec.moveAmount=(Number(selected.spec.length)||baseArrowLength)*0.12;
+    placementArmed=false;
+    placeArrowButton.classList.remove("active");
+    moveArrowButton.classList.remove("active");
+    stepText.textContent="Okun yeni konumu kaydedildi. Boyutunu ve yönünü ayarlayabilirsin.";
+    setStatus("Seçili okun yeri değiştirildi.");
+    drawPlacements();
+    return;
+  }
+
   baseArrowLength=modelSize.length()*0.22;
   const spec={
     position:[point.x,point.y,point.z],
     direction:[0,0,1],
     length:baseArrowLength,
-    moveAmount:baseArrowLength*0.012
+    moveAmount:baseArrowLength*0.12
   };
-  const placements=currentPlacements();
   if(activeKind==="entrance"){
     const existing=placements.findIndex(item=>item.kind==="entrance");
     if(existing>=0){placements[existing]={kind:activeKind,spec};selectedIndex=existing;}
@@ -334,6 +367,7 @@ function handleModelClick(event){
   }
   placementArmed=false;
   placeArrowButton.classList.remove("active");
+  moveArrowButton.classList.remove("active");
   stepText.textContent="Ok yerleştirildi. Boyutunu ve yönünü şimdi ayarlayabilirsin.";
   setStatus("Dolgun ok yatay zemine yerleştirildi.");
   drawPlacements();
@@ -396,6 +430,7 @@ async function loadFloor(name){
   setStatus("Kat modeli yükleniyor…");
   placementArmed=false;
   placeArrowButton.classList.remove("active");
+  moveArrowButton.classList.remove("active");
   if(currentModel){
     scene.remove(currentModel);
     currentModel.traverse(obj=>{
@@ -440,7 +475,7 @@ async function loadFloor(name){
     controls.update();
     selectedIndex=currentPlacements().length?0:-1;
     drawPlacements();
-    setStatus("Model hazır. Ok türünü seçip “Modelde konum seç” düğmesine bas.");
+    setStatus("Model hazır. Ok türünü seçip “Yeni ok yerleştir” düğmesine bas.");
   }catch(error){
     console.error(error);
     setStatus("Model yüklenemedi. Kat dosyasını ve bağlantıyı kontrol et.");
@@ -452,8 +487,10 @@ function setKind(kind){
   entranceMode.classList.toggle("active",kind==="entrance");
   stairMode.classList.toggle("active",kind==="stair");
   placementArmed=false;
+  placementAction="new";
   placeArrowButton.classList.remove("active");
-  stepText.textContent="“Modelde konum seç” düğmesine basıp zemine tıkla.";
+  moveArrowButton.classList.remove("active");
+  stepText.textContent="“Yeni ok yerleştir” düğmesine basıp zemine tıkla.";
 }
 
 entranceMode.addEventListener("click",()=>setKind("entrance"));
@@ -464,10 +501,32 @@ floorSelect.addEventListener("change",()=>{
 });
 
 placeArrowButton.addEventListener("click",()=>{
-  placementArmed=!placementArmed;
-  placeArrowButton.classList.toggle("active",placementArmed);
-  stepText.textContent=placementArmed?"Modelde okun duracağı yatay zemine bir kez tıkla.":"“Modelde konum seç” düğmesine basıp zemine tıkla.";
-  setStatus(placementArmed?"Ok yerleştirme açık. Modelde uygun zemine tıkla.":"Ok yerleştirme iptal edildi.");
+  placementAction="new";
+  placementArmed=true;
+  placeArrowButton.classList.add("active");
+  moveArrowButton.classList.remove("active");
+  stepText.textContent="Şimdi modelde okun duracağı yatay zemine bir kez tıkla.";
+  setStatus("Yeni ok için konum seç. Modelde yatay zemine tıkla.");
+});
+
+moveArrowButton.addEventListener("click",()=>{
+  if(selectedIndex<0 || !currentPlacements()[selectedIndex]) return;
+  placementAction="move";
+  placementArmed=true;
+  moveArrowButton.classList.add("active");
+  placeArrowButton.classList.remove("active");
+  stepText.textContent="Şimdi seçili okun yeni duracağı yatay zemine bir kez tıkla.";
+  setStatus("Seçili okun yeni konumunu model üzerinde belirle.");
+});
+
+cancelPlacementButton.addEventListener("click",()=>{
+  placementArmed=false;
+  placementAction="new";
+  placeArrowButton.classList.remove("active");
+  moveArrowButton.classList.remove("active");
+  stepText.textContent="Yerleştirme iptal edildi. İstediğin zaman tekrar başlayabilirsin.";
+  setStatus("Yerleştirme iptal edildi.");
+  syncArrowControls();
 });
 
 arrowSelect.addEventListener("change",()=>{
@@ -480,7 +539,7 @@ sizeSlider.addEventListener("input",()=>{
   if(!item)return;
   const factor=Number(sizeSlider.value);
   item.spec.length=baseArrowLength*factor;
-  item.spec.moveAmount=item.spec.length*0.012;
+  item.spec.moveAmount=item.spec.length*0.12;
   sizeValue.textContent=factor.toFixed(2).replace(".",",")+"×";
   drawPlacements();
 });
