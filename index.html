@@ -382,6 +382,7 @@ const panoClose = document.getElementById("panoClose");
 let scene, camera, renderer, controls, ground;
 let featureGroup = null;
 let panoramaMarkers = [];
+let animatedPanoramaGroups = [];
 let animatedArrows = [];
 let activePanorama = null;
 let panoRenderer = null, panoScene = null, panoCamera = null, panoControls = null;
@@ -690,6 +691,28 @@ function openPanorama(pano) {
   renderPano();
 }
 
+function createPanoramaBadgeTexture(){
+  const canvas=document.createElement("canvas");
+  canvas.width=512;
+  canvas.height=256;
+  const ctx=canvas.getContext("2d");
+  ctx.fillStyle="#078fa9";
+  ctx.beginPath();
+  ctx.roundRect(18,18,476,220,92);
+  ctx.fill();
+  ctx.strokeStyle="#ffffff";
+  ctx.lineWidth=12;
+  ctx.stroke();
+  ctx.fillStyle="#ffffff";
+  ctx.font="bold 118px Segoe UI, Arial";
+  ctx.textAlign="center";
+  ctx.textBaseline="middle";
+  ctx.fillText("360°",256,132);
+  const texture=new THREE.CanvasTexture(canvas);
+  texture.colorSpace=THREE.SRGBColorSpace;
+  return texture;
+}
+
 function addArrow(spec, color, modelSize) {
   if (!spec || !Array.isArray(spec.position) || spec.position.length !== 3 ||
       !Array.isArray(spec.direction) || spec.direction.length !== 3) return;
@@ -757,13 +780,17 @@ function setupModelFeatures(folder, name, size) {
       if (obj.geometry) obj.geometry.dispose();
       if (obj.material) {
         const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
-        mats.forEach(m => m.dispose());
+        mats.forEach(m => {
+          if(m.map)m.map.dispose();
+          m.dispose();
+        });
       }
     });
   }
   featureGroup = new THREE.Group();
   scene.add(featureGroup);
   panoramaMarkers = [];
+  animatedPanoramaGroups = [];
   animatedArrows = [];
 
   const cfg = getPortfolioConfig(folder, name);
@@ -780,24 +807,53 @@ function setupModelFeatures(folder, name, size) {
 
     if (Array.isArray(pano.position) && pano.position.length === 3) {
       const marker = new THREE.Group();
-      const radius = Math.max(size.length() * 0.009, 0.045);
-      const sphere = new THREE.Mesh(
-        new THREE.SphereGeometry(radius, 20, 16),
-        new THREE.MeshBasicMaterial({ color: 0x19a7a0, depthTest: false })
+      const radius = Math.max(size.length() * 0.014, 0.055);
+
+      const base = new THREE.Mesh(
+        new THREE.CylinderGeometry(radius * 0.56, radius * 0.78, radius * 0.24, 32),
+        new THREE.MeshStandardMaterial({ color: 0x078fa9, roughness: 0.34, metalness: 0.08 })
       );
-      sphere.userData.panorama = pano;
-      sphere.renderOrder = 20;
-      marker.add(sphere);
+      base.position.y = radius * 0.18;
+      base.castShadow = true;
+      marker.add(base);
+
       const ring = new THREE.Mesh(
-        new THREE.TorusGeometry(radius * 1.45, radius * 0.13, 8, 28),
-        new THREE.MeshBasicMaterial({ color: 0xffffff, depthTest: false })
+        new THREE.TorusGeometry(radius * 0.76, radius * 0.09, 10, 36),
+        new THREE.MeshBasicMaterial({ color: 0x7eeaf0, depthTest: false })
       );
       ring.rotation.x = Math.PI / 2;
+      ring.position.y = radius * 0.12;
       ring.renderOrder = 20;
       marker.add(ring);
+
+      const hitTarget = new THREE.Mesh(
+        new THREE.SphereGeometry(radius * 0.9, 18, 14),
+        new THREE.MeshBasicMaterial({ color: 0x078fa9, transparent: true, opacity: 0.02, depthTest: false })
+      );
+      hitTarget.position.y = radius * 0.2;
+      hitTarget.userData.panorama = pano;
+      hitTarget.renderOrder = 21;
+      marker.add(hitTarget);
+
+      const badge = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: createPanoramaBadgeTexture(),
+        transparent: true,
+        depthTest: false,
+        depthWrite: false
+      }));
+      badge.scale.set(radius * 3.35, radius * 1.68, 1);
+      badge.position.y = radius * 1.55;
+      badge.renderOrder = 22;
+      badge.userData.panorama = pano;
+      marker.add(badge);
+
       marker.position.set(...pano.position);
+      marker.userData.baseY = marker.position.y;
+      marker.userData.floatHeight = radius * 0.10;
+      marker.userData.phase = index * 0.7;
       featureGroup.add(marker);
-      panoramaMarkers.push(sphere);
+      panoramaMarkers.push(hitTarget, badge);
+      animatedPanoramaGroups.push(marker);
     }
   });
   panoramaButtons.hidden = panoramaButtons.childElementCount === 0;
@@ -1095,6 +1151,16 @@ function animate() {
       arrow.position.copy(base).addScaledVector(
         dir, Math.sin(t * 2.4) * arrow.userData.moveAmount
       );
+    });
+  }
+
+  if (animatedPanoramaGroups.length) {
+    const t = clock.elapsedTime;
+    animatedPanoramaGroups.forEach(marker => {
+      marker.position.y = marker.userData.baseY +
+        Math.sin(t * 2.1 + marker.userData.phase) * marker.userData.floatHeight;
+      const pulse = 1 + 0.035 * (1 + Math.sin(t * 2.1 + marker.userData.phase));
+      marker.scale.setScalar(pulse);
     });
   }
 
