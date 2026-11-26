@@ -212,7 +212,10 @@ button, .open {
 #panoramaButtons { display: none !important; }
 
 #musicControls { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 8px; }
-#musicToggle { min-height: 36px; min-width: 36px; }
+#musicToggle { width: 34px; height: 34px; padding: 7px; display: inline-flex; align-items: center; justify-content: center; background: #fff; color: #555; border: 1px solid #e3e3e3; border-radius: 50%; }
+#musicToggle .sound-off, #musicToggle.is-muted .sound-waves { display: none; }
+#musicToggle.is-muted .sound-off { display: initial; }
+#musicToggle.is-playing { background: #fff; color: #555; border-color: #e3e3e3; }
 #musicToggle:focus-visible { outline: 2px solid #176b43; outline-offset: 3px; }
 #musicMessage { flex-basis: 100%; text-align: center; font-size: 12px; color: #555; }
 #musicMessage:empty { display: none; }
@@ -318,7 +321,7 @@ button, .open {
   <div id="tourActions">
     <div id="panoramaButtons" hidden></div>
     <div id="musicControls" hidden role="group" aria-label="Portföy müziği">
-      <button id="musicToggle" type="button" aria-label="Sesi kapat" aria-pressed="true">🔊</button>
+      <button id="musicToggle" type="button" aria-label="Sesi kapat" aria-pressed="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/><path class="sound-waves" d="M15 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/><path class="sound-off" d="m16 9 5 6m0-6-5 6"/></svg></button>
       <span id="musicMessage" role="status" aria-live="polite"></span>
     </div>
   </div>
@@ -347,7 +350,7 @@ button, .open {
 
 </div>
 
-<audio id="backgroundMusic" loop preload="none"></audio>
+<audio id="backgroundMusic" autoplay loop playsinline preload="auto"></audio>
 
 <div id="panel" hidden>
 
@@ -613,7 +616,7 @@ function syncMusicControl() {
   // Show the user’s sound preference even while autoplay awaits a gesture.
   const audible = !backgroundMusic.muted;
   const label = audible ? "Sesi kapat" : "Sesi aç";
-  musicToggle.textContent = audible ? "🔊" : "🔇";
+  musicToggle.classList.toggle("is-muted", !audible);
   musicToggle.setAttribute("aria-label", label);
   musicToggle.setAttribute("title", label);
   musicToggle.setAttribute("aria-pressed", String(audible));
@@ -655,6 +658,8 @@ function applyMusic(folder, name) {
   }
   backgroundMusic.src = url;
   backgroundMusic.loop = true;
+  backgroundMusic.autoplay = true;
+  backgroundMusic.muted = false;
   backgroundMusic.volume = 0.22;
   syncMusicControl();
   void startMusic();
@@ -679,6 +684,12 @@ function resumeMusicOnGesture(event) {
 tour.addEventListener("pointerup", resumeMusicOnGesture);
 tour.addEventListener("click", resumeMusicOnGesture);
 tour.addEventListener("keydown", resumeMusicOnGesture);
+// Retry once the media becomes playable; a trusted gesture remains the fallback.
+backgroundMusic.addEventListener("canplay", () => {
+  if (backgroundMusic.paused && !backgroundMusic.muted && backgroundMusic.dataset.url) {
+    void startMusic();
+  }
+});
 backgroundMusic.addEventListener("volumechange", syncMusicControl);
 backgroundMusic.addEventListener("play", syncMusicControl);
 backgroundMusic.addEventListener("pause", syncMusicControl);
