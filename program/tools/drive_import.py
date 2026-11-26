@@ -157,7 +157,7 @@ def cover(image, ref, title, font_path):
     width, height = image.size
     scale = width / 1200
     band = max(72, round(104 * scale))
-    result = Image.new("RGB", (width, height + band), "#fafafa")
+    result = Image.new("RGB", (width, height + band), "#ffe800")
     result.paste(image, (0, 0))
     draw = ImageDraw.Draw(result)
     caption_font_path = font_path.replace("-Bold.ttf", ".ttf")
