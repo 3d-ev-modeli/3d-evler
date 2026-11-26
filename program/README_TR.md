@@ -1,5 +1,7 @@
 # 3D Ev Turu
 
+Tüm uygulama dosyaları bu program/ klasöründedir. Depo kökündeki index.html yalnızca burayı açar. Yeni model ve portföy klasörlerini program/ içinde oluşturun. Ana site: https://3d-ev-modeli.github.io/3d-evler/ .
+
 Program, yeni portföylerin eklenmesi için temiz durumdadır. Deneme portföyleri ve onlara ait model, kapak, müzik ve paylaşım sayfaları kaldırılmıştır.
 
 ## Program dosyaları

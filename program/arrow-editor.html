@@ -64,11 +64,7 @@ input[type=range]{width:100%;accent-color:#176b43;cursor:pointer}
     <p class="muted">Ok, yatay zemine oturan dolgun ve tamamen dolu bir şekildir. Yerini bir tıklamayla seç; boyutunu ve yönünü sonradan ayarla.</p>
 
     <label for="floorSelect">Kat</label>
-    <select id="floorSelect">
-      <option value="bodrum kat.glb">Bodrum</option>
-      <option value="zemin.glb" selected>Zemin</option>
-      <option value="1. kat.glb">1. Kat</option>
-    </select>
+    <select id="floorSelect"></select>
 
     <label>Ok türü</label>
     <div class="actions">
@@ -127,7 +123,7 @@ input[type=range]{width:100%;accent-color:#176b43;cursor:pointer}
 
     <label>Ok yerleşim özeti</label>
     <div id="summary">Henüz ok eklenmedi.</div>
-    <p class="small" style="margin:10px 0 0">Üç katın ok ve 360° fotoğraf konumlarını tek dosyada indirebilirsin. Dosyayı buraya yüklediğinde canlı siteye ben işleyeceğim; kod aramana gerek yok.</p>
+    <p class="small" style="margin:10px 0 0">Katların ok ve 360° fotoğraf konumlarını tek dosyada indirebilirsin. Dosyayı buraya yüklediğinde canlı siteye ben işleyeceğim; kod aramana gerek yok.</p>
     <div class="footer-actions">
       <button id="downloadButton" class="primary" type="button">Tüm katları indir</button>
       <button id="clearButton" class="danger" type="button">Bu kattaki okları temizle</button>
@@ -139,12 +135,11 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
-const DEFAULT_FOLDER = "057-Beylikdüzü Gürpınar - 6+1 Villa";
 const params = new URLSearchParams(location.search);
-const folder = params.get("villa") || DEFAULT_FOLDER;
-const floorNames = ["bodrum kat.glb","zemin.glb","1. kat.glb"];
-const STORAGE_KEY = "3d-ev-arrow-editor-v2:" + folder;
-const PANORAMA_STORAGE_KEY = "3d-ev-panorama-editor-v1:" + folder;
+let folder = params.get("villa") || "";
+let floorNames = [];
+let STORAGE_KEY = "3d-ev-arrow-editor-v2:" + folder;
+let PANORAMA_STORAGE_KEY = "3d-ev-panorama-editor-v1:" + folder;
 
 const viewer = document.getElementById("viewer");
 const statusBox = document.getElementById("status");
@@ -887,10 +882,10 @@ document.getElementById("downloadButton").addEventListener("click",()=>{
   const url=URL.createObjectURL(blob);
   const a=document.createElement("a");
   a.href=url;
-  a.download="ref-057-ok-ve-360-konumlari.json";
+  a.download=(appConfig.villas?.[folder]?.ref || "portfoy")+"-ok-ve-360-konumlari.json";
   a.click();
   URL.revokeObjectURL(url);
-  setStatus("Üç katın ok konumları tek JSON dosyasına aktarıldı.");
+  setStatus("Katların ok konumları tek JSON dosyasına aktarıldı.");
 });
 
 async function start(){
@@ -898,6 +893,28 @@ async function start(){
     const response=await fetch("./config/portfolios.json?rev="+Date.now());
     if(response.ok)appConfig=await response.json();
   }catch(error){console.warn("Portföy ayarları okunamadı.",error);}
+  folder = folder || Object.keys(appConfig.villas || {})[0] || "";
+  if (!folder || !appConfig.villas?.[folder]) {
+    setStatus("Henüz portföy yok. Önce bir portföy ekleyin.");
+    return;
+  }
+  STORAGE_KEY = "3d-ev-arrow-editor-v2:" + folder;
+  PANORAMA_STORAGE_KEY = "3d-ev-panorama-editor-v1:" + folder;
+  document.getElementById("backLink").href = "./?villa=" + encodeURIComponent(folder);
+  try {
+    const response = await fetch("https://api.github.com/repos/3d-ev-modeli/3d-evler/contents/program/" + encodeURIComponent(folder) + "?ref=main");
+    if (!response.ok) throw new Error("Kat listesi alınamadı.");
+    const files = await response.json();
+    floorNames = files.filter(item => item.type === "file" && /\.glb$/i.test(item.name)).map(item => item.name).sort((a,b) => a.localeCompare(b,"tr",{numeric:true}));
+    floorSelect.replaceChildren(...floorNames.map(name => {
+      const option = document.createElement("option");
+      option.value = name;
+      option.textContent = name.replace(/\.glb$/i,"");
+      return option;
+    }));
+    if (!floorNames.length) { setStatus("Bu portföyde model bulunmuyor."); return; }
+    floorSelect.value = floorNames.find(name => /zemin/i.test(name)) || floorNames[0];
+  } catch (error) { setStatus("Katlar yüklenemedi. Lütfen tekrar deneyin."); return; }
   restoreDraft();
   restorePanoramaDraft();
   const requested=params.get("floor");
