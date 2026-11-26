@@ -347,7 +347,7 @@ function makeEditorPanoramaMarker(pano,index){
     depthTest:true,
     depthWrite:false
   });
-  const label=new THREE.Mesh(new THREE.PlaneGeometry(radius*1.15,radius*0.57),material);
+  const label=new THREE.Mesh(new THREE.PlaneGeometry(radius*0.92,radius*0.46),material);
   label.rotation.x=-Math.PI/2;
   label.position.y=0.012;
   label.renderOrder=2;
