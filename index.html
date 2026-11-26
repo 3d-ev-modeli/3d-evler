@@ -699,10 +699,13 @@ function openPanorama(pano) {
   panoControls = new OrbitControls(panoCamera, panoRenderer.domElement);
   panoControls.enablePan = false;
   panoControls.enableZoom = true;
-  panoControls.minDistance = 0.025;
+  panoControls.minDistance = 0.003;
   panoControls.maxDistance = 0.1;
-  panoControls.zoomSpeed = 0.7;
+  panoControls.zoomSpeed = 2.0;
   panoControls.rotateSpeed = -0.5;
+  panoRenderer.domElement.style.touchAction = "none";
+  panoRenderer.domElement.style.webkitUserSelect = "none";
+  panoControls.touches.TWO = THREE.TOUCH.DOLLY_PAN;
   panoControls.target.set(0, 0, 0);
   panoControls.update();
 
