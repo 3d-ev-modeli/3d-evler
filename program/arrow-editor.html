@@ -894,9 +894,21 @@ async function start(){
     if(response.ok)appConfig=await response.json();
   }catch(error){console.warn("Portföy ayarları okunamadı.",error);}
   folder = folder || Object.keys(appConfig.villas || {})[0] || "";
+  const requestedFolder = folder;
+  if (folder && !appConfig.villas?.[folder]) {
+    const replacement = Object.entries(appConfig.villas || {}).find(([, cfg]) => cfg.legacyFolders?.includes(folder));
+    if (replacement) folder = replacement[0];
+  }
   if (!folder || !appConfig.villas?.[folder]) {
     setStatus("Henüz portföy yok. Önce bir portföy ekleyin.");
     return;
+  }
+  if (requestedFolder !== folder) {
+    for (const prefix of ["3d-ev-arrow-editor-v2:", "3d-ev-panorama-editor-v1:"]) {
+      if (!localStorage.getItem(prefix + folder) && localStorage.getItem(prefix + requestedFolder)) {
+        localStorage.setItem(prefix + folder, localStorage.getItem(prefix + requestedFolder));
+      }
+    }
   }
   STORAGE_KEY = "3d-ev-arrow-editor-v2:" + folder;
   PANORAMA_STORAGE_KEY = "3d-ev-panorama-editor-v1:" + folder;

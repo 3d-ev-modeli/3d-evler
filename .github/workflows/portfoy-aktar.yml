@@ -8,7 +8,7 @@ on:
         required: true
         type: string
       reference:
-        description: 'Ref (boşsa klasör adından alınır; ör. 057)'
+        description: 'Ref (villa: 057v / daire: 057d; boşsa klasör adından alınır)'
         required: false
         type: string
       location:

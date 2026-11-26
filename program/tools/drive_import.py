@@ -211,10 +211,20 @@ def prepare(drive, folder, config, ref="", location="", details="", base_url="",
     root = drive.metadata(fid)
     if root.get("mimeType") != FOLDER:
         raise ImportError_("Bağlantı bir Drive klasörüne ait olmalı.")
-    match = re.match(r"^(\d{1,10})\s*[-_ ]+(.+)$", root["name"])
-    ref = ref.strip() or (match.group(1) if match else "")
-    if not re.fullmatch(r"\d{1,10}", ref):
-        raise ImportError_("Klasör adı 057-... gibi başlamalı veya Ref alanını doldurmalısınız.")
+    match = re.match(r"^(\d{1,10}[vd]?)\s*[-_ ]+(.+)$", root["name"], re.I)
+    ref = (ref.strip() or (match.group(1) if match else "")).lower()
+    if not re.fullmatch(r"\d{1,10}[vd]?", ref):
+        raise ImportError_("Ref 057v (villa) veya 057d (daire) biçiminde olmalı.")
+    if ref[-1:].isdigit():
+        words = normalize(root["name"] + " " + location + " " + details).split("-")
+        kinds = set()
+        if "villa" in words:
+            kinds.add("v")
+        if "daire" in words:
+            kinds.add("d")
+        if len(kinds) != 1:
+            raise ImportError_("Tür belirlenemedi. Ref alanına villa için 057v, daire için 057d gibi açık bir değer yazın.")
+        ref += kinds.pop()
     folder_name = f"ref-{ref}"
     config = copy.deepcopy(config)
     config.setdefault("models", {})
@@ -261,6 +271,9 @@ def prepare(drive, folder, config, ref="", location="", details="", base_url="",
         record["coverImage"] = "./" + image_path
         record["sharePath"] = f"./share/ref-{ref}.html?v={digest}"
         pending[f"program/share/ref-{ref}.html"] = share_page(base_url, ref, display, base_url + "/program/" + image_path, dimensions, digest).encode()
+        for alias in record.get("legacyFolders", []):
+            if re.fullmatch(r"ref-\d{1,10}", alias):
+                pending[f"program/share/{alias}.html"] = pending[f"program/share/ref-{ref}.html"]
     elif not record.get("coverImage"):
         warnings.append("Kapak fotoğrafı yok; WhatsApp kapağı hazırlanmadı.")
     music = choose(children, lambda f: normalize(Path(f["name"]).stem) in ("muzik", "music") and Path(f["name"]).suffix.lower() == ".mp3", "müzik dosyası")
@@ -335,7 +348,7 @@ def prepare(drive, folder, config, ref="", location="", details="", base_url="",
             positions = json.loads(drive.download(mapping, 2 * 1024 * 1024))
         except (ValueError, UnicodeError):
             raise ImportError_("İşaret dosyası geçerli JSON değil.") from None
-        if positions.get("villa") != folder_name:
+        if positions.get("villa") not in [folder_name, *record.get("legacyFolders", [])]:
             raise ImportError_(f"İşaret dosyası bu portföy için olmalı: {folder_name}")
         for floor_name, specs in positions.get("floors", {}).items():
             if floor_name not in floors:

@@ -43,6 +43,18 @@ class DeleteTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "başka kayıt"):
             module.deletion_plan(self.root, self.config, "057", "057")
 
+    def test_delete_villa_keeps_same_number_apartment(self):
+        self.config["villas"] = {"ref-057v": {"ref": "057v", "legacyFolders": ["ref-057"]}, "ref-057d": {"ref": "057d"}}
+        for name in ("program/ref-057v/zemin.glb", "program/ref-057d/daire.glb", "program/audio/057v-test.mp3", "program/audio/057d-test.mp3"):
+            path = self.root / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(b"fixture")
+        cfg, paths = module.deletion_plan(self.root, self.config, "057v", "057v")
+        self.assertNotIn("ref-057v", cfg["villas"])
+        self.assertIn("ref-057d", cfg["villas"])
+        self.assertFalse(any("057d" in str(p) for p in paths))
+        self.assertIn(self.root / "program/ref-057", paths)
+
 
 if __name__ == "__main__":
     unittest.main()

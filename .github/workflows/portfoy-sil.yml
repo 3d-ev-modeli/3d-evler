@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
     inputs:
       reference:
-        description: 'Silinecek portföyün Ref numarası (ör. 057)'
+        description: 'Silinecek portföyün Ref numarası (ör. 057v)'
         required: true
         type: string
       confirmation:

@@ -64,25 +64,25 @@ class ImportTests(unittest.TestCase):
     def test_complete_import_and_unplaced_markers(self):
         pending, result = self.prepare()
         cfg = json.loads(pending["program/config/portfolios.json"])
-        record = cfg["villas"]["ref-057"]
+        record = cfg["villas"]["ref-057v"]
         self.assertEqual(cfg["villas"]["ref-999"], self.config["villas"]["ref-999"])
         self.assertEqual(result["models"], 1)
         self.assertEqual(result["photos360"], 1)
         self.assertEqual(result["unplaced"], 1)
         self.assertEqual(record["floors"]["zemin.glb"]["panoramas"], [])
-        self.assertIn("program/ref-057/zemin.glb", pending)
-        self.assertIn("<iframe", pending["program/share/ref-057.html"].decode())
-        self.assertNotIn("location.replace", pending["program/share/ref-057.html"].decode())
+        self.assertIn("program/ref-057v/zemin.glb", pending)
+        self.assertIn("<iframe", pending["program/share/ref-057v.html"].decode())
+        self.assertNotIn("location.replace", pending["program/share/ref-057v.html"].decode())
 
     def test_idempotent_and_preserve_coordinates(self):
         pending, _ = self.prepare()
         self.config = json.loads(pending["program/config/portfolios.json"])
-        floor = self.config["villas"]["ref-057"]["floors"]["zemin.glb"]
+        floor = self.config["villas"]["ref-057v"]["floors"]["zemin.glb"]
         floor["panoramas"] = [{"driveFileId": "pano0000000", "position": [1, 2, 3], "initialYaw": 90}]
         floor["entranceArrow"] = {"position": [4, 5, 6], "direction": [0, 0, 1]}
         new, result = self.prepare()
         cfg = json.loads(new["program/config/portfolios.json"])
-        floor = cfg["villas"]["ref-057"]["floors"]["zemin.glb"]
+        floor = cfg["villas"]["ref-057v"]["floors"]["zemin.glb"]
         self.assertEqual(floor["panoramas"][0]["position"], [1, 2, 3])
         self.assertEqual(floor["panoramas"][0]["initialYaw"], 90)
         self.assertEqual(floor["entranceArrow"]["position"], [4, 5, 6])
@@ -97,20 +97,20 @@ class ImportTests(unittest.TestCase):
     def test_same_name_replacement_keeps_marker(self):
         pending, _ = self.prepare()
         self.config = json.loads(pending["program/config/portfolios.json"])
-        self.config["villas"]["ref-057"]["floors"]["zemin.glb"]["panoramas"] = [{"driveFileId": "pano0000000", "position": [1, 2, 3]}]
+        self.config["villas"]["ref-057v"]["floors"]["zemin.glb"]["panoramas"] = [{"driveFileId": "pano0000000", "position": [1, 2, 3]}]
         self.drive.items["floor000000"][0]["id"] = "panoNEW0000"
         self.drive.data["panoNEW0000"] = image(200, 100)
         pending, _ = self.prepare()
-        marker = json.loads(pending["program/config/portfolios.json"])["villas"]["ref-057"]["floors"]["zemin.glb"]["panoramas"][0]
+        marker = json.loads(pending["program/config/portfolios.json"])["villas"]["ref-057v"]["floors"]["zemin.glb"]["panoramas"][0]
         self.assertEqual(marker["driveFileId"], "panoNEW0000")
         self.assertEqual(marker["position"], [1, 2, 3])
 
     def test_exported_marker_file(self):
         self.drive.items["folder000000"].append(file("mapping0000", "isaretler.json"))
-        self.drive.data["mapping0000"] = json.dumps({"villa": "ref-057", "floors": {"zemin.glb": {"panoramas": [{"driveFileId": "pano0000000", "position": [0, 1, 2], "url": "https://untrusted.test/image"}]}}}).encode()
+        self.drive.data["mapping0000"] = json.dumps({"villa": "ref-057v", "floors": {"zemin.glb": {"panoramas": [{"driveFileId": "pano0000000", "position": [0, 1, 2], "url": "https://untrusted.test/image"}]}}}).encode()
         pending, result = self.prepare()
-        marker = json.loads(pending["program/config/portfolios.json"])["villas"]["ref-057"]["floors"]["zemin.glb"]["panoramas"][0]
-        self.assertTrue(marker["url"].startswith("./360/057/"))
+        marker = json.loads(pending["program/config/portfolios.json"])["villas"]["ref-057v"]["floors"]["zemin.glb"]["panoramas"][0]
+        self.assertTrue(marker["url"].startswith("./360/057v/"))
         self.assertEqual(result["unplaced"], 0)
 
     def test_no_write_on_bad_glb(self):
@@ -126,16 +126,40 @@ class ImportTests(unittest.TestCase):
         self.drive.items["folder000000"].append(file("model000000", "daire.glb"))
         self.drive.items["photofolder0"] = [file("pano0000000", "salon.jpg")]
         pending, result = self.prepare(location="Beylikdüzü", details="3+1 Daire")
-        record = json.loads(pending["program/config/portfolios.json"])["villas"]["ref-007"]
+        record = json.loads(pending["program/config/portfolios.json"])["villas"]["ref-007d"]
         self.assertEqual(result["models"], 1)
         self.assertEqual(result["photos360"], 1)
         self.assertEqual(list(record["floors"]), ["daire.glb"])
         self.assertEqual(record["details"], "3+1 Daire")
-        self.assertIn("program/ref-007/daire.glb", pending)
+        self.assertIn("program/ref-007d/daire.glb", pending)
 
     def test_bad_music(self):
         self.drive.data["music000000"] = b"<html>not an mp3</html>"
         with self.assertRaises(module.ImportError_):
+            self.prepare()
+
+    def test_same_number_villa_and_apartment_are_distinct(self):
+        pending, _ = self.prepare(ref="057V")
+        cfg = json.loads(pending["program/config/portfolios.json"])
+        self.drive.root["name"] = "057-Daire"
+        self.drive.items["apartment000"] = self.drive.items["folder000000"]
+        pending, result = module.prepare(self.drive, "apartment000", cfg, ref="057d", base_url="https://example.test", font_path=FONT)
+        updated = json.loads(pending["program/config/portfolios.json"])
+        self.assertEqual(updated["villas"]["ref-057v"]["ref"], "057v")
+        self.assertEqual(updated["villas"]["ref-057d"]["ref"], "057d")
+        self.assertTrue(result["viewer"].endswith("ref-057d"))
+
+    def test_legacy_marker_export_is_accepted_for_migrated_portfolio(self):
+        self.config["villas"]["ref-057v"] = {"ref": "057v", "legacyFolders": ["ref-057"]}
+        self.drive.items["folder000000"].append(file("mapping0000", "isaretler.json"))
+        self.drive.data["mapping0000"] = json.dumps({"villa": "ref-057", "floors": {"zemin.glb": {"panoramas": [{"driveFileId": "pano0000000", "position": [0, 1, 2]}]}}}).encode()
+        pending, result = self.prepare()
+        self.assertEqual(result["unplaced"], 0)
+        self.assertIn("program/share/ref-057.html", pending)
+
+    def test_ambiguous_type_needs_suffix(self):
+        self.drive.root["name"] = "057-Portföy"
+        with self.assertRaisesRegex(module.ImportError_, "Tür belirlenemedi"):
             self.prepare()
 
     def test_normal_photo_not_a_fake_marker(self):
@@ -150,13 +174,13 @@ class ImportTests(unittest.TestCase):
             self.prepare()
 
     def test_wrong_source_cannot_overwrite_ref(self):
-        self.config["villas"]["ref-057"] = {"ref": "057", "driveFolderId": "differentFolder"}
+        self.config["villas"]["ref-057v"] = {"ref": "057", "driveFolderId": "differentFolder"}
         with self.assertRaises(module.ImportError_):
             self.prepare()
 
     def test_reject_unknown_floor_mapping(self):
         self.drive.items["folder000000"].append(file("mapping0000", "isaretler.json"))
-        self.drive.data["mapping0000"] = json.dumps({"villa": "ref-057", "floors": {"../index.html": {}}}).encode()
+        self.drive.data["mapping0000"] = json.dumps({"villa": "ref-057v", "floors": {"../index.html": {}}}).encode()
         with self.assertRaises(module.ImportError_):
             self.prepare()
 

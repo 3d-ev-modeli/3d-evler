@@ -365,7 +365,7 @@ const API =
 const params = new URLSearchParams(location.search);
 
 const file = params.get("model");
-const villa = params.get("villa");
+let villa = params.get("villa");
 
 let appConfig = { models: {}, villas: {}, musicUrl: "" };
 async function loadAppConfig() {
@@ -2037,6 +2037,10 @@ async function loadModels() {
 }
 
 await loadAppConfig();
+if (villa && !appConfig.villas?.[villa]) {
+  const replacement = Object.entries(appConfig.villas || {}).find(([, cfg]) => cfg.legacyFolders?.includes(villa));
+  if (replacement) villa = replacement[0];
+}
 
 if (file && isGLB(file)) {
 

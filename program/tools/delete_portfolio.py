@@ -10,7 +10,8 @@ import sys
 
 
 def deletion_plan(root, config, reference, confirmation):
-    if not re.fullmatch(r"[0-9]{1,10}", reference) or reference != confirmation:
+    reference, confirmation = reference.lower(), confirmation.lower()
+    if not re.fullmatch(r"[0-9]{1,10}[vd]?", reference) or reference != confirmation:
         raise ValueError("Ref ve onay alanına aynı numarayı, baştaki sıfırlarla birlikte yazın.")
     root = Path(root).resolve()
     program = root / "program"
@@ -21,20 +22,26 @@ def deletion_plan(root, config, reference, confirmation):
     for section in ("villas", "models"):
         for key, value in list(result.get(section, {}).items()):
             if str(value.get("ref", "")) == reference:
-                if not re.fullmatch(r"ref-[0-9]{1,10}", key):
+                if not re.fullmatch(r"ref-[0-9]{1,10}[vd]?", key):
                     raise ValueError("Bu eski kayıt otomatik silme biçiminde değil; dosyalar incelenmeli.")
                 found.append(key)
+                legacy = value.get("legacyFolders", [])
                 del result[section][key]
     if not found:
         raise ValueError("Bu Ref ile kayıtlı portföy bulunamadı; hiçbir dosya silinmedi.")
     if len(found) != 1 or found[0] != "ref-" + reference:
         raise ValueError("Ref ve portföy klasörü eşleşmiyor; hiçbir dosya silinmedi.")
-    paths = [program / found[0], program / "360" / reference]
+    aliases = [name for name in legacy if re.fullmatch(r"ref-[0-9]{1,10}", name)]
+    if any(name[4:] != reference.rstrip("vd") for name in aliases):
+        raise ValueError("Eski Ref eşleşmesi geçersiz; işlem durdu.")
+    references = [reference] + [name[4:] for name in aliases]
+    paths = [program / found[0]] + [program / name for name in aliases]
+    paths += [program / "360" / ref for ref in references]
     for directory in ("covers", "audio"):
         base = program / directory
         if base.exists():
-            paths += [p for p in base.iterdir() if p.is_file() and (p.name.startswith(reference + "-") or p.stem == reference)]
-    paths += [program / "share" / f"ref-{reference}.html", program / "share" / f"villa-{reference}.html"]
+            paths += [p for p in base.iterdir() if p.is_file() and any(p.name.startswith(ref + "-") or p.stem == ref for ref in references)]
+    paths += [program / "share" / f"{prefix}-{ref}.html" for ref in references for prefix in ("ref", "villa")]
     for path in paths:
         if path.is_symlink() or not path.resolve().is_relative_to(program.resolve()):
             raise ValueError("Güvenli olmayan dosya yolu; işlem durdu.")

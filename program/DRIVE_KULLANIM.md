@@ -13,7 +13,7 @@ Bu sistem, GitHub Actions ekranından verdiğiniz komutla tek bir Drive portföy
 ## Dosyaları yerleştirme
 
 ```text
-057-Gürpınar 6+1 Müstakil Villa/
+057v-Gürpınar 6+1 Müstakil Villa/
   glb/
     bodrum.glb
     zemin.glb
@@ -30,26 +30,26 @@ Bu sistem, GitHub Actions ekranından verdiğiniz komutla tek bir Drive portföy
   isaretler.json  (ilk işaret yerleştirmesinden sonra)
 ```
 
-“057-... - glb” ve “057-... - foto” gibi uzun klasör adları da desteklenir. Kat adlarında “bodrum kat”, “zemin kat”, “1. kat” kullanılabilir. Birden fazla dosya aynı kata karşılık gelmemelidir.
+“057v-... - glb” ve “057v-... - foto” gibi uzun klasör adları da desteklenir. Kat adlarında “bodrum kat”, “zemin kat”, “1. kat” kullanılabilir. Birden fazla dosya aynı kata karşılık gelmemelidir.
 
 Kapağı kapak.jpg, kapak.png veya cover.jpg olarak adlandırın. Ana klasörde tek bir fotoğraf varsa mevcut adı da kabul edilir. Müzikte de muzik.mp3/music.mp3 tercih edilir; yalnızca bir MP3 varsa adı değişmeden kullanılabilir. Birden fazla aday varsa işlem seçim yapmadan durur.
 
 GLB dosyaları tüm dokularını içinde barındırmalıdır. Her model en fazla 90 MB, MP3 60 MB, kapak 30 MB, 360 kaynak fotoğrafı 40 MB; toplam aktarım en fazla 400 MB olabilir. Normal fotoğraflar bu aşamada galeriye alınmaz. 360 fotoğrafları equirectangular 2:1 olmalıdır; diğer oranlar uyarıyla atlanır.
 
-## Tek katlı daire
+## Referans türü
 
-Tek katlı dairede yalnızca bir GLB yeterlidir. daire.glb dosyasını glb/ klasörüne veya portföy ana klasörüne koyabilirsiniz. 360 fotoğrafları foto/ klasörüne doğrudan koyabilirsiniz; ayrıca kat klasörü gerekmez. İşlemde konum ve detay alanına örneğin Beylikdüzü ve 3+1 Daire yazın. Tek model varsa görüntüleyicide kat düğmeleri görünmez. Kapak, müzik ve işaret eşleştirme işlemleri aynı şekilde çalışır.
+Villa için 057v, daire için 057d kullanın. Aynı sayılı villa ve daire birbirinden bağımsızdır. Büyük V/D harfleri küçük harfe çevrilir. Yalnızca sayı verilirse klasör adında villa veya daire açıkça belirtilmelidir; tür belirsizse işlem seçim yapmadan durur.
 
 ## Aktarımı başlatma
 
 1. GitHub → Actions → Portföyü Drive'dan aktar → Run workflow.
 2. Branch: main.
 3. Drive klasör bağlantısını yapıştırın. Örnek: https://drive.google.com/drive/folders/...
-4. Ref isteğe bağlıdır; verilmezse klasör adının başındaki 057 alınır. Baştaki sıfır korunur.
+4. Ref isteğe bağlıdır; verilmezse klasör adının başındaki 057v alınır. Baştaki sıfır korunur.
 5. Konum/başlık ve detay alanlarını doldurabilirsiniz. Boşsa klasör adı kullanılır; mevcut kayıtta önceki başlık korunur.
 6. Run workflow düğmesine basın. Yeşil tamamlandı işaretinden sonra iş özetindeki sunum ve paylaşım bağlantılarını kullanın.
 
-Sonuçlar program/ref-057, program/covers, program/audio, program/360 ve program/share altında oluşturulur. Program dosyaları değiştirilmez. Kapak fotoğrafı kesilmez; bahçe ve zemin korunur. Sol üstte kırmızı Ref etiketi, altta büyük portföy adı bulunur. Müzik portföye özeldir ve sunuma ilk dokunuşta başlar.
+Sonuçlar program/ref-057v, program/covers, program/audio, program/360 ve program/share altında oluşturulur. Program dosyaları değiştirilmez. Kapak fotoğrafı kesilmez; bahçe ve zemin korunur. Sol üstte kırmızı Ref etiketi, altta büyük portföy adı bulunur. Müzik portföye özeldir ve sunuma ilk dokunuşta başlar.
 
 ## 360 fotoğrafı işarete bağlama
 
@@ -75,7 +75,7 @@ Mevcut Drive dosyasını “Yeni sürüm yükle” ile değiştirmek dosya kimli
 
 ## Portföyü silme
 
-GitHub → Actions → Portföyü sil → Run workflow açın. Branch olarak main seçin. Silinecek Ref numarasını hem reference hem confirmation alanına aynı şekilde, baştaki sıfırlarla yazın (ör. 057). İşlem seçilen portföyün kaydını, modellerini, kapaklarını, müziklerini, 360 dosyalarını ve paylaşım sayfalarını siteden kaldırır ve siteyi yeniden yayınlar. Başka bir portföy aynı varlığı kullanıyorsa inceleme için durur. Drive dosyaları ve program kodu silinmez. Önceki dosyalar Git geçmişinde kalır. Bu işlem için Google API anahtarı gerekmez.
+GitHub → Actions → Portföyü sil → Run workflow açın. Branch olarak main seçin. Silinecek Ref numarasını hem reference hem confirmation alanına aynı şekilde, baştaki sıfırlarla yazın (ör. 057v). İşlem seçilen portföyün kaydını, modellerini, kapaklarını, müziklerini, 360 dosyalarını ve paylaşım sayfalarını siteden kaldırır ve siteyi yeniden yayınlar. Başka bir portföy aynı varlığı kullanıyorsa inceleme için durur. Drive dosyaları ve program kodu silinmez. Önceki dosyalar Git geçmişinde kalır. Bu işlem için Google API anahtarı gerekmez.
 
 ## Kaynaklar
 
