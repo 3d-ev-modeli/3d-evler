@@ -57,18 +57,63 @@
         "bodrum kat.glb": {
           "platformColor": "#fdf7f5",
           "panoramas": [],
-          "stairArrows": []
+          "stairArrows": [
+            {
+              "position": [
+                0.056512687568384345,
+                0.015067847068665713,
+                0.1378516428550678
+              ],
+              "direction": [
+                -0.9986295347545738,
+                0,
+                0.052335956242943946
+              ],
+              "length": 0.11032081117694402,
+              "moveAmount": 0.0013238497341233283
+            }
+          ],
+          "entranceArrow": null
         },
         "zemin.glb": {
           "platformColor": null,
           "panoramas": [],
-          "entranceArrow": null,
+          "entranceArrow": {
+            "position": [
+              -0.23088560085822324,
+              0.010000021887001517,
+              -0.18896742838911543
+            ],
+            "direction": [
+              0.9986295347545738,
+              0,
+              -0.05233595624294384
+            ],
+            "length": 0.12317093299593146,
+            "moveAmount": 0.0014780511959511776
+          },
           "stairArrows": []
         },
         "1. kat.glb": {
           "platformColor": "#f5f9fd",
           "panoramas": [],
-          "stairArrows": []
+          "stairArrows": [
+            {
+              "position": [
+                0.027661713293272494,
+                0.11912386279449667,
+                0.11036942659937193
+              ],
+              "direction": [
+                -0.9986295347545738,
+                0,
+                0.052335956242943946
+              ],
+              "length": 0.11674001829283785,
+              "moveAmount": 0.0014008802195140543
+            }
+          ],
+          "entranceArrow": null
         }
       }
     }
