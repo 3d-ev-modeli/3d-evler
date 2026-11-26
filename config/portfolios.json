@@ -45,6 +45,32 @@
           "stairArrows": []
         }
       }
+    },
+    "057-Beylikdüzü Gürpınar - 6+1 Villa": {
+      "ref": "057",
+      "location": "Beylikdüzü Gürpınar",
+      "details": "6+1 Villa",
+      "coverImage": "",
+      "sharePath": "",
+      "musicUrl": "",
+      "floors": {
+        "bodrum kat.glb": {
+          "platformColor": "#fdf7f5",
+          "panoramas": [],
+          "stairArrows": []
+        },
+        "zemin.glb": {
+          "platformColor": null,
+          "panoramas": [],
+          "entranceArrow": null,
+          "stairArrows": []
+        },
+        "1. kat.glb": {
+          "platformColor": "#f5f9fd",
+          "panoramas": [],
+          "stairArrows": []
+        }
+      }
     }
   }
 }
