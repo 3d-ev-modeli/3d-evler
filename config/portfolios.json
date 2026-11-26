@@ -113,7 +113,28 @@
               "moveAmount": 0.0014008802195140543
             }
           ],
-          "entranceArrow": null
+          "entranceArrow": null,
+          "driveFolderId": "1SRR1-deuWFTtuFYhgOvP-KEBX50A23Af",
+          "panoramaPhotos": [
+            {
+              "id": "1VSPc0JiWqP0aU3TTQFnqvP7wcJ9ue-_7",
+              "title": "TEST 01 · IMG_20250619_131159_00_027.jpg",
+              "url": "https://drive.google.com/uc?export=view&id=1VSPc0JiWqP0aU3TTQFnqvP7wcJ9ue-_7",
+              "thumbnailUrl": "https://drive.google.com/thumbnail?id=1VSPc0JiWqP0aU3TTQFnqvP7wcJ9ue-_7&sz=w480"
+            },
+            {
+              "id": "1qGAsYLtRBPtjzJZgN_hSgGSkWZlhqZNo",
+              "title": "TEST 02 · IMG_20250619_131113_00_025.jpg",
+              "url": "https://drive.google.com/uc?export=view&id=1qGAsYLtRBPtjzJZgN_hSgGSkWZlhqZNo",
+              "thumbnailUrl": "https://drive.google.com/thumbnail?id=1qGAsYLtRBPtjzJZgN_hSgGSkWZlhqZNo&sz=w480"
+            },
+            {
+              "id": "1algWunTUUDBTmTY-BQPfie9ZE4J0rHSY",
+              "title": "TEST 03 · IMG_20250619_131052_00_024.jpg",
+              "url": "https://drive.google.com/uc?export=view&id=1algWunTUUDBTmTY-BQPfie9ZE4J0rHSY",
+              "thumbnailUrl": "https://drive.google.com/thumbnail?id=1algWunTUUDBTmTY-BQPfie9ZE4J0rHSY&sz=w480"
+            }
+          ]
         }
       }
     }
