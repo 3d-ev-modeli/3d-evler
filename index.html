@@ -414,6 +414,7 @@ let panoPinchStartFov = 75;
 let panoTouchStartHandler = null;
 let panoTouchMoveHandler = null;
 let panoTouchEndHandler = null;
+let panoWheelHandler = null;
 let currentFolder = null;
 let currentFileName = null;
 
@@ -626,8 +627,9 @@ function closePanorama() {
     if (panoTouchStartHandler) panoRenderer.domElement.removeEventListener("touchstart", panoTouchStartHandler);
     if (panoTouchMoveHandler) panoRenderer.domElement.removeEventListener("touchmove", panoTouchMoveHandler);
     if (panoTouchEndHandler) panoRenderer.domElement.removeEventListener("touchend", panoTouchEndHandler);
+    if (panoWheelHandler) panoRenderer.domElement.removeEventListener("wheel", panoWheelHandler);
   }
-  panoTouchStartHandler = panoTouchMoveHandler = panoTouchEndHandler = null;
+  panoTouchStartHandler = panoTouchMoveHandler = panoTouchEndHandler = panoWheelHandler = null;
   panoPinchStartDistance = 0;
   if (panoControls) panoControls.dispose();
   if (panoResizeObserver) panoResizeObserver.disconnect();
@@ -710,7 +712,7 @@ function openPanorama(pano) {
 
   panoControls = new OrbitControls(panoCamera, panoRenderer.domElement);
   panoControls.enablePan = false;
-  panoControls.enableZoom = true;
+  panoControls.enableZoom = false; // Yakınlaştırmayı aşağıdaki özel FOV kontrolü yönetir.
   panoControls.minDistance = 0.003;
   panoControls.maxDistance = 0.1;
   panoControls.zoomSpeed = 2.0;
@@ -748,6 +750,15 @@ function openPanorama(pano) {
   panoRenderer.domElement.addEventListener("touchmove", panoTouchMoveHandler, { passive: false });
   panoRenderer.domElement.addEventListener("touchend", panoTouchEndHandler, { passive: true });
   panoRenderer.domElement.addEventListener("touchcancel", panoTouchEndHandler, { passive: true });
+
+  // Masaüstünde fare tekerleğiyle yakınlaştırma/uzaklaştırma.
+  panoWheelHandler = (event) => {
+    event.preventDefault();
+    const factor = Math.exp(event.deltaY * 0.0015);
+    panoCamera.fov = THREE.MathUtils.clamp(panoCamera.fov * factor, 25, 100);
+    panoCamera.updateProjectionMatrix();
+  };
+  panoRenderer.domElement.addEventListener("wheel", panoWheelHandler, { passive: false });
   panoControls.update();
 
   const resize = () => {
