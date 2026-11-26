@@ -1,0 +1,121 @@
+name: Portföyü Drive'dan aktar
+
+on:
+  workflow_dispatch:
+    inputs:
+      drive_folder:
+        description: 'Drive portföy ana klasörünün bağlantısı'
+        required: true
+        type: string
+      reference:
+        description: 'Ref (boşsa klasör adından alınır; ör. 057)'
+        required: false
+        type: string
+      location:
+        description: 'Konum / başlık (ör. Beylikdüzü Gürpınar)'
+        required: false
+        type: string
+      details:
+        description: 'Detay (ör. 6+1 Müstakil Villa)'
+        required: false
+        type: string
+
+concurrency:
+  group: portfolio-pages-main
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  import-and-publish:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Programı al
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Python hazırla
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Fotoğraf araçlarını hazırla
+        run: python -m pip install -r program/tools/requirements.txt
+      - name: Kurulumu kontrol et
+        env:
+          GOOGLE_DRIVE_API_KEY: ${{ secrets.GOOGLE_DRIVE_API_KEY }}
+        run: |
+          if [ -z "$GOOGLE_DRIVE_API_KEY" ]; then
+            echo '::error::GOOGLE_DRIVE_API_KEY eksik. program/DRIVE_KULLANIM.md içindeki bir defalık kurulumu tamamlayın.'
+            exit 1
+          fi
+          test -f /usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf
+      - name: Aktarım testleri
+        run: python -m unittest discover -s program/tests -v
+      - name: Drive portföyünü doğrula ve al
+        env:
+          GOOGLE_DRIVE_API_KEY: ${{ secrets.GOOGLE_DRIVE_API_KEY }}
+          DRIVE_FOLDER: ${{ inputs.drive_folder }}
+          PORTFOLIO_REF: ${{ inputs.reference }}
+          PORTFOLIO_LOCATION: ${{ inputs.location }}
+          PORTFOLIO_DETAILS: ${{ inputs.details }}
+          REPO_OWNER: ${{ github.repository_owner }}
+          REPO_NAME: ${{ github.event.repository.name }}
+        run: |
+          python program/tools/drive_import.py \
+            --folder "$DRIVE_FOLDER" \
+            --ref "$PORTFOLIO_REF" \
+            --location "$PORTFOLIO_LOCATION" \
+            --details "$PORTFOLIO_DETAILS" \
+            --base-url "https://${REPO_OWNER}.github.io/${REPO_NAME}"
+      - name: Değişiklikleri main dalına kaydet
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- program
+          if ! git diff --cached --quiet; then
+            git commit -m 'Import verified portfolio assets from Drive'
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi
+      - name: Yayın klasörünü hazırla
+        run: python program/tools/prepare_site.py
+      - name: Pages ayarlarını oku
+        uses: actions/configure-pages@v5
+      - name: Siteyi paketle
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+      - name: Siteyi yayınla
+        id: deployment
+        uses: actions/deploy-pages@v4
+      - name: Kullanım bağlantılarını göster
+        run: python program/tools/import_summary.py
+      - name: Proje yedeğini hazırla
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import zipfile
+          with zipfile.ZipFile('portfoy-projesi.zip', 'w', zipfile.ZIP_DEFLATED) as archive:
+              archive.write('index.html')
+              for directory in ('program', '.github'):
+                  for path in Path(directory).rglob('*'):
+                      if path.is_file() and '__pycache__' not in path.parts and path.suffix != '.pyc':
+                          archive.write(path)
+          PY
+      - name: Güncel proje ZIP'i
+        uses: actions/upload-artifact@v4
+        with:
+          name: portfoy-projesi
+          path: portfoy-projesi.zip
+
