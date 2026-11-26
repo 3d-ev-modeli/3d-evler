@@ -173,13 +173,13 @@ def cover(image, ref, title, font_path):
     badge_height = max(52, round(78 * scale))
     draw.rounded_rectangle((x, y, x + badge_width, y + badge_height), radius=9, fill="#c51b24")
     draw.text((x + badge_width / 2, y + badge_height / 2), badge, font=badge_font, anchor="mm", fill="white")
-    tag_font = ImageFont.truetype(caption_font_path, max(32, round(64 * scale)))
+    tag_font = badge_font
     tag_width = draw.textlength("3D", font=tag_font) + 38 * scale
-    tag_height = max(60, round(88 * scale))
+    tag_height = badge_height
     tag_x = width - x - tag_width
     draw.rounded_rectangle((tag_x, y, width - x, y + tag_height), radius=9, fill="#202d3d")
     draw.text((tag_x + tag_width / 2, y + tag_height / 2), "3D", font=tag_font, anchor="mm", fill="white")
-    draw.text((width / 2, height + band / 2), title, font=title_font, anchor="mm", fill="#292929")
+    draw.text((x, height + band / 2), title, font=title_font, anchor="lm", fill="#292929")
     output = io.BytesIO()
     for quality in (82, 74, 65, 55):
         output.seek(0)
