@@ -160,12 +160,13 @@ def cover(image, ref, title, font_path):
     result = Image.new("RGB", (width, height + band), "#fafafa")
     result.paste(image, (0, 0))
     draw = ImageDraw.Draw(result)
-    badge_font = ImageFont.truetype(font_path, max(24, round(44 * scale)))
+    caption_font_path = font_path.replace("-Bold.ttf", ".ttf")
+    badge_font = ImageFont.truetype(caption_font_path, max(24, round(44 * scale)))
     title_size = max(24, round(34 * scale))
-    title_font = ImageFont.truetype(font_path, title_size)
+    title_font = ImageFont.truetype(caption_font_path, title_size)
     while draw.textlength(title, font=title_font) > width - 48 and title_size > 16:
         title_size -= 1
-        title_font = ImageFont.truetype(font_path, title_size)
+        title_font = ImageFont.truetype(caption_font_path, title_size)
     badge = f"Ref: {ref}"
     badge_width = draw.textlength(badge, font=badge_font) + 42 * scale
     x, y = max(14, round(28 * scale)), max(14, round(28 * scale))
