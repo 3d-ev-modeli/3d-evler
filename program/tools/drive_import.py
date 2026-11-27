@@ -288,7 +288,7 @@ def prepare(drive, folder, config, ref="", location="", details="", base_url="",
         record["sharePath"] = f"./share/ref-{ref}.html?v={digest}"
         pending[f"program/share/ref-{ref}.html"] = share_page(base_url, ref, display, base_url + "/program/" + image_path, dimensions, digest).encode()
         for alias in record.get("legacyFolders", []):
-            if re.fullmatch(r"ref-\d{1,10}", alias):
+            if re.fullmatch(r"ref-\d{1,10}[vd]?", alias):
                 pending[f"program/share/{alias}.html"] = pending[f"program/share/ref-{ref}.html"]
     elif not record.get("coverImage"):
         warnings.append("Kapak fotoğrafı yok; WhatsApp kapağı hazırlanmadı.")
