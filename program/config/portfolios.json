@@ -131,7 +131,47 @@
               "thumbnailUrl": "./360/999v/scene-436a7bed-4277-4366-b6a8-6e76ef5b6b57/1rztoIUHX8fU5vj0ABcU851AenQ4LGUIR-5fbf10dc5edf.jpg"
             }
           ],
-          "panoramas": []
+          "panoramas": [
+            {
+              "driveFileId": "1qFnbqZ-hwadOE57ymivXnrcfv9UCPu21",
+              "title": "Geniş Panoramik Antre ve Koridor_upscale_upscale",
+              "url": "./360/999v/scene-436a7bed-4277-4366-b6a8-6e76ef5b6b57/1qFnbqZ-hwadOE57ymivXnrcfv9UCPu21-ffede8e4e424.jpg",
+              "thumbnailUrl": "./360/999v/scene-436a7bed-4277-4366-b6a8-6e76ef5b6b57/1qFnbqZ-hwadOE57ymivXnrcfv9UCPu21-ffede8e4e424.jpg",
+              "position": [
+                -0.16514794022529167,
+                0.014870390786845027,
+                0.09428106952605446
+              ]
+            },
+            {
+              "driveFileId": "1rztoIUHX8fU5vj0ABcU851AenQ4LGUIR",
+              "title": "2Ruglu Aydınlık Mutfak Panoraması_upscale",
+              "url": "./360/999v/scene-436a7bed-4277-4366-b6a8-6e76ef5b6b57/1rztoIUHX8fU5vj0ABcU851AenQ4LGUIR-5fbf10dc5edf.jpg",
+              "thumbnailUrl": "./360/999v/scene-436a7bed-4277-4366-b6a8-6e76ef5b6b57/1rztoIUHX8fU5vj0ABcU851AenQ4LGUIR-5fbf10dc5edf.jpg",
+              "position": [
+                -0.07307685073460529,
+                0.014885359026324334,
+                -0.1320111033301749
+              ]
+            }
+          ],
+          "entranceArrow": null,
+          "stairArrows": [
+            {
+              "position": [
+                0.222403121128053,
+                0.014870325700229827,
+                -0.06999959514714038
+              ],
+              "direction": [
+                -1,
+                0,
+                -1.8369701987210297e-16
+              ],
+              "length": 0.04355442632489621,
+              "moveAmount": 0.005226531158987545
+            }
+          ]
         }
       },
       "coverImage": "./covers/999v-6a13f02b8bbc.jpg",
