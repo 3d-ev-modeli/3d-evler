@@ -114,9 +114,29 @@
       "driveFolderId": "1CG9cUzM-F6-SI98qMIPzoS4QFHEVqbRV",
       "floors": {
         "scene-436a7bed-4277-4366-b6a8-6e76ef5b6b57.glb": {
-          "driveModelId": "1Hq8RF2SlYJ4JCRkXQrI-GiMglneUK9oK"
+          "driveModelId": "1Hq8RF2SlYJ4JCRkXQrI-GiMglneUK9oK",
+          "panoramaPhotos": [
+            {
+              "id": "1qFnbqZ-hwadOE57ymivXnrcfv9UCPu21",
+              "sourceName": "Geniş Panoramik Antre ve Koridor_upscale_upscale.jpg",
+              "title": "Geniş Panoramik Antre ve Koridor_upscale_upscale",
+              "url": "./360/999v/scene-436a7bed-4277-4366-b6a8-6e76ef5b6b57/1qFnbqZ-hwadOE57ymivXnrcfv9UCPu21-ffede8e4e424.jpg",
+              "thumbnailUrl": "./360/999v/scene-436a7bed-4277-4366-b6a8-6e76ef5b6b57/1qFnbqZ-hwadOE57ymivXnrcfv9UCPu21-ffede8e4e424.jpg"
+            },
+            {
+              "id": "1rztoIUHX8fU5vj0ABcU851AenQ4LGUIR",
+              "sourceName": "2Ruglu Aydınlık Mutfak Panoraması_upscale.jpg",
+              "title": "2Ruglu Aydınlık Mutfak Panoraması_upscale",
+              "url": "./360/999v/scene-436a7bed-4277-4366-b6a8-6e76ef5b6b57/1rztoIUHX8fU5vj0ABcU851AenQ4LGUIR-5fbf10dc5edf.jpg",
+              "thumbnailUrl": "./360/999v/scene-436a7bed-4277-4366-b6a8-6e76ef5b6b57/1rztoIUHX8fU5vj0ABcU851AenQ4LGUIR-5fbf10dc5edf.jpg"
+            }
+          ],
+          "panoramas": []
         }
-      }
+      },
+      "coverImage": "./covers/999v-6a13f02b8bbc.jpg",
+      "sharePath": "./share/ref-999v.html?v=6a13f02b8bbc",
+      "musicUrl": "./audio/999v-6272e43a708f.mp3"
     }
   }
 }
