@@ -4,8 +4,8 @@
   "villas": {
     "ref-064v": {
       "ref": "064v",
-      "location": "Beylikd\u00fcz\u00fc G\u00fcrp\u0131nar",
-      "details": "6+1 M\u00fcstakil Villa",
+      "location": "Beylikdüzü Gürpınar",
+      "details": "6+1 Müstakil Villa",
       "driveFolderId": "1b8zdz4UZvnM2T5rvmknVxVrLdCYJgbGe",
       "floors": {
         "bodrum-kat.glb": {
@@ -106,6 +106,17 @@
         "ref-057",
         "ref-057v"
       ]
+    },
+    "ref-999v": {
+      "ref": "999v",
+      "location": "Deneme",
+      "details": "",
+      "driveFolderId": "1CG9cUzM-F6-SI98qMIPzoS4QFHEVqbRV",
+      "floors": {
+        "scene-436a7bed-4277-4366-b6a8-6e76ef5b6b57.glb": {
+          "driveModelId": "1Hq8RF2SlYJ4JCRkXQrI-GiMglneUK9oK"
+        }
+      }
     }
   }
 }
