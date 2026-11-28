@@ -108,3 +108,24 @@ jobs:
                   except Exception as exc:
                       print(agent, name, type(exc).__name__, str(exc))
           PY
+      - name: Probe direct video streaming
+        run: |
+          python - <<'PY'
+          import json, urllib.request, urllib.parse, re
+          from pathlib import Path
+          url=json.loads(Path("program/config/test-links-064v.json").read_text())["videos"]["64v"]
+          u=urllib.parse.urlsplit(url)
+          id=(re.search(r"/file/d/([\w-]+)",u.path) or [None,None])[1] or urllib.parse.parse_qs(u.query).get("id",[""])[0]
+          assert id and re.fullmatch(r"[\w-]+",id)
+          for host,path in [("drive.google.com","/uc"),("drive.usercontent.google.com","/download")]:
+              try:
+                  query={"id":id,"export":"download"}
+                  if host.startswith("drive.usercontent"): query["confirm"]="t"
+                  key=urllib.parse.parse_qs(u.query).get("resourcekey")
+                  if key: query["resourcekey"]=key[0]
+                  req=urllib.request.Request("https://"+host+path+"?"+urllib.parse.urlencode(query),headers={"Range":"bytes=0-1023","User-Agent":"Mozilla/5.0"})
+                  with urllib.request.urlopen(req,timeout=25) as res:
+                      print(host,res.status,res.headers.get("Content-Type"),res.headers.get("Content-Range"),"MP4 signature",b"ftyp" in res.read(1024))
+              except Exception as e:
+                  print(host,type(e).__name__,getattr(e,"code",""))
+          PY
