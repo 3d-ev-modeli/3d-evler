@@ -346,6 +346,16 @@ button, .open {
 #locationDialog::backdrop { background:#000b; }
 #locationClose { position:absolute; top:8px; right:12px; z-index:1; }
 #locationFrame { border:0; width:100%; height:calc(100% - 50px); margin-top:50px; }
+#detailDialog, #videoDialog { border:0; padding:0; border-radius:0; width:100%; max-width:100%; height:100dvh; max-height:100dvh; background:#fff; box-sizing:border-box; }
+#detailDialog::backdrop { background:#000b; }
+#detailHeader, #videoHeader { height:50px; box-sizing:border-box; padding:0 12px; margin:0; display:flex; align-items:center; justify-content:space-between; gap:8px; background:#fff; color:#555; }
+#detailClose, #videoClose { margin:0; padding:10px 14px; background:#176b43; color:#fff; font-size:14px; }
+#detailFrame { width:100%; height:calc(100% - 50px); border:0; display:block; }
+#videoContent { width:100%; height:calc(100% - 50px); aspect-ratio:auto; }
+#videoContent video { object-fit:contain; }
+#videoSourceLink { display:none; }
+#detailOpenButton { display:inline-flex; align-items:center; gap:6px; background:#176b43; color:#fff; border:0; border-radius:7px; }
+#detailOpenButton svg { width:16px; height:16px; fill:currentColor; }
 </style>
 
 <script type="importmap">
@@ -391,7 +401,7 @@ button, .open {
   </div>
 
   <div id="portfolioActions">
-    <a id="detailOpenButton" target="_blank" rel="noopener noreferrer" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h18v3H3zm0 6h18v3H3zm0 6h14v3H3z"/></svg>Bilgiler</a>
+    <button id="detailOpenButton" type="button" aria-haspopup="dialog" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h18v3H3zm0 6h18v3H3zm0 6h14v3H3z"/></svg>Bilgiler</button>
     <button id="locationOpenButton" type="button" hidden aria-haspopup="dialog"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a8 8 0 0 0-8 8c0 5.5 8 12 8 12s8-6.5 8-12a8 8 0 0 0-8-8zm0 11a3 3 0 1 1 0-6 3 3 0 0 1 0 6z"/></svg>Konum</button>
     <button id="videoOpenButton" type="button" hidden aria-haspopup="dialog"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3l15 9-15 9z"/></svg>Video</button>
   </div>
@@ -419,6 +429,8 @@ button, .open {
   <div id="videoContent"></div>
   <a id="videoSourceLink" target="_blank" rel="noopener noreferrer">Videoyu yeni sekmede aç</a>
 </dialog>
+
+<dialog id="detailDialog" aria-labelledby="detailHeading"><div id="detailHeader"><span id="detailHeading">Portföy bilgileri</span><button id="detailClose" type="button">× Kapat</button></div><iframe id="detailFrame" title="Portföy bilgileri" referrerpolicy="no-referrer"></iframe></dialog>
 
 <dialog id="locationDialog" aria-label="Portföy konumu"><button id="locationClose" type="button">× Kapat</button><iframe id="locationFrame" title="Portföy konum fotoğrafı" referrerpolicy="no-referrer"></iframe></dialog>
 
@@ -499,6 +511,8 @@ document.getElementById("tourClose").addEventListener("click", closeTour);
 function closeTour() {
   if (tourClosed) return;
   tourClosed = true;
+  closeDetail();
+  if (locationDialog.open) locationDialog.close();
   closeVideo(false);
   ++loadID;
   ++musicRequest;
@@ -582,6 +596,21 @@ locationButton.addEventListener("click",()=>{ if (!activeLocation || tourClosed)
 document.getElementById("locationClose").addEventListener("click",()=>locationDialog.close());
 locationDialog.addEventListener("close",()=>locationFrame.removeAttribute("src"));
 const detailButton = document.getElementById("detailOpenButton");
+const detailDialog = document.getElementById("detailDialog");
+const detailFrame = document.getElementById("detailFrame");
+let activeDetail = null;
+function detailTarget(value) {
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "https:" || url.username || url.password) return null;
+    const match = url.hostname === "docs.google.com" && url.pathname.match(/^\/(document|spreadsheets|presentation)\/d\/([\w-]+)/);
+    if (match) return "https://docs.google.com/" + match[1] + "/d/" + match[2] + "/preview";
+    return locationTarget(value) || url.href;
+  } catch { return null; }
+}
+function closeDetail() { if (detailDialog.open) detailDialog.close(); detailFrame.removeAttribute("src"); }
+document.getElementById("detailClose").addEventListener("click", closeDetail);
+detailDialog.addEventListener("close", () => { detailFrame.removeAttribute("src"); musicNeedsGesture = !tourClosed && !!backgroundMusic.dataset.url; });
 const videoButton = document.getElementById("videoOpenButton");
 const videoDialog = document.getElementById("videoDialog");
 const videoContent = document.getElementById("videoContent");
@@ -627,16 +656,19 @@ function applyVideo(folder, name) {
   price.textContent = displayPrice(prices[ref]);
   price.hidden = !price.textContent;
   videoButton.hidden = !videoTarget(activeVideoUrl);
-  const detail = videoTarget(detailLinks[ref]);
-  detailButton.hidden = !detail;
-  if (detail) detailButton.href = detail.source;
-  else detailButton.removeAttribute("href");
+  closeDetail();
+  activeDetail = detailTarget(detailLinks[ref]);
+  detailButton.hidden = !activeDetail;
 }
 
 detailButton.addEventListener("click", () => {
+  if (!activeDetail || tourClosed) return;
+  closePanorama();
   ++musicRequest;
   backgroundMusic.pause();
-  musicNeedsGesture = !!backgroundMusic.dataset.url;
+  musicNeedsGesture = false;
+  detailFrame.src = activeDetail;
+  detailDialog.showModal();
 });
 
 function releaseVideo(allowMusicGesture = true) {
@@ -666,12 +698,8 @@ function openVideo() {
   videoIsOpen = true;
   videoContent.replaceChildren();
   videoSourceLink.href = target.source;
-  if (target.kind === "link") {
-    const message = document.createElement("p");
-    message.textContent = "Videoyu aşağıdaki bağlantıdan açabilirsiniz.";
-    videoContent.appendChild(message);
-  } else {
-    const media = document.createElement(target.kind);
+  {
+    const media = document.createElement(target.kind === "link" ? "iframe" : target.kind);
     media.src = target.url;
     if (target.kind === "video") {
       media.controls = true;
