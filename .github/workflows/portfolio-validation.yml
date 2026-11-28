@@ -47,3 +47,36 @@ jobs:
           for field in ("details", "locations", "prices", "videos"):
               print("064v " + field + ": " + ("present" if catalog.get(field, {}).get("64v") else "empty"))
           PY
+      - name: Render real 064v cover without deployment
+        if: github.event_name == 'push' && github.ref == 'refs/heads/portfolio-price-location'
+        env:
+          GOOGLE_DRIVE_API_KEY: ${{ secrets.GOOGLE_DRIVE_API_KEY }}
+          PORTFOLIO_DRIVE_FILE_ID: ${{ secrets.PORTFOLIO_DRIVE_FILE_ID }}
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/google/fonts/main/ofl/poppins/Poppins-ExtraBold.ttf -o "$RUNNER_TEMP/Poppins-ExtraBold.ttf"
+          export PORTFOLIO_PRICE_FONT="$RUNNER_TEMP/Poppins-ExtraBold.ttf"
+          PYTHONPATH=program/tools python - <<'PY'
+          import os, json
+          from pathlib import Path
+          from drive_import import Drive, choose, normalize, IMAGE_EXT, cover, image_bytes
+          from video_links import read_drive_catalog, format_price
+          drive = Drive(os.environ["GOOGLE_DRIVE_API_KEY"])
+          catalog = read_drive_catalog(drive, ".")
+          record = json.loads(Path("program/config/portfolios.json").read_text())["villas"]["ref-064v"]
+          price = format_price(catalog["prices"]["64v"])
+          assert price, "064v price missing"
+          children = drive.children(record["driveFolderId"])
+          item = choose(children, lambda f: normalize(Path(f["name"]).stem) in ("kapak","cover") and Path(f["name"]).suffix.lower() in IMAGE_EXT, "cover")
+          if not item:
+              item = choose(children, lambda f: Path(f["name"]).suffix.lower() in IMAGE_EXT, "cover")
+          assert item, "064v cover missing"
+          data, dims = cover(image_bytes(drive.download(item, 30*1024*1024)), "064v", record["location"] + " · " + record["details"], "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", price)
+          Path("preview-064v.jpg").write_bytes(data)
+          print("064v cover rendered:", dims)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: github.event_name == 'push' && github.ref == 'refs/heads/portfolio-price-location'
+        with:
+          name: preview-064v
+          path: preview-064v.jpg
+          retention-days: 1
