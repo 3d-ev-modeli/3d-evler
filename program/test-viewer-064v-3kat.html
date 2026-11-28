@@ -634,7 +634,12 @@ function videoTarget(value) {
     if (id && /^[\w-]+$/.test(id)) {
       const preview = new URL("https://drive.google.com/file/d/" + id + "/preview");
       if (url.searchParams.has("resourcekey")) preview.searchParams.set("resourcekey", url.searchParams.get("resourcekey"));
-      return { kind: "iframe", url: preview.href, source: url.href };
+      const direct = new URL("https://drive.usercontent.google.com/download");
+      direct.searchParams.set("id", id);
+      direct.searchParams.set("export", "download");
+      direct.searchParams.set("confirm", "t");
+      if (url.searchParams.has("resourcekey")) direct.searchParams.set("resourcekey", url.searchParams.get("resourcekey"));
+      return { kind: "video", url: direct.href, source: url.href, fallback: preview.href };
     }
   }
   if (["youtube.com", "www.youtube.com", "m.youtube.com", "youtu.be"].includes(host)) {
@@ -705,6 +710,17 @@ function openVideo() {
       media.controls = true;
       media.playsInline = true;
       media.preload = "metadata";
+      media.setAttribute("playsinline", "");
+      media.setAttribute("controlslist", "nofullscreen nodownload noremoteplayback");
+      media.disablePictureInPicture = true;
+      if (target.fallback) media.addEventListener("error", () => {
+        if (!videoIsOpen || !media.isConnected) return;
+        const frame = document.createElement("iframe");
+        frame.src = target.fallback;
+        frame.title = "Portföy videosu (Drive yedek oynatıcı)";
+        frame.allow = "autoplay";
+        media.replaceWith(frame);
+      }, {once:true});
     } else {
       media.title = "Portföy videosu";
       media.allow = "autoplay; fullscreen; picture-in-picture";
@@ -714,6 +730,8 @@ function openVideo() {
     videoContent.appendChild(media);
   }
   videoDialog.showModal();
+  const inlineVideo = videoContent.querySelector("video");
+  if (inlineVideo) inlineVideo.play().catch(() => {});
 }
 videoButton.addEventListener("click", openVideo);
 document.getElementById("videoClose").addEventListener("click", () => closeVideo());
