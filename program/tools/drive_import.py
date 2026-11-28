@@ -440,8 +440,11 @@ def main():
     args = parser.parse_args()
     try:
         config = json.loads((Path(args.root) / "program/config/portfolios.json").read_text(encoding="utf-8"))
-        pending, result = prepare(Drive(os.environ.get("GOOGLE_DRIVE_API_KEY", "")), args.folder, config,
+        from video_links import sync_drive_catalog
+        drive = Drive(os.environ.get("GOOGLE_DRIVE_API_KEY", ""))
+        pending, result = prepare(drive, args.folder, config,
                                   args.ref, args.location, args.details, args.base_url.rstrip("/"), args.font)
+        result["catalogSynced"] = sync_drive_catalog(drive, args.root, pending)
         result["changed"] = len(apply_plan(args.root, pending))
         Path("import-result.json").write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
         print(f"Ref {result['ref']}: {result['models']} model, {result['photos360']} adet 360 fotoğraf; {result['unplaced']} fotoğraf konum bekliyor.")
@@ -456,3 +459,4 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
+

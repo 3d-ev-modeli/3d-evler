@@ -211,6 +211,29 @@ button, .open {
 
 #panoramaButtons { display: none !important; }
 
+#videoOpenButton, #detailOpenButton {
+  display: inline-flex; align-items: center; gap: 6px;
+  margin: 0; padding: 5px 10px; min-height: 30px; border: 0; border-radius: 7px;
+  color: white; font: 600 12px "Segoe UI", Arial, sans-serif; text-decoration: none;
+}
+#videoOpenButton { background: #d51011; }
+#detailOpenButton { background: #086342; }
+#videoOpenButton svg, #detailOpenButton svg { width: 16px; height: 16px; fill: currentColor; }
+#videoOpenButton:focus-visible, #detailOpenButton:focus-visible { outline: 2px solid #078fa9; outline-offset: 3px; }
+#lightingComparison button {
+  margin: 0; padding: 6px 10px; font-size: 11px; border-radius: 16px;
+  background: #f2f4f5; color: #444; border: 1px solid #dce1e4;
+}
+#lightingComparison { display: flex; align-items: center; gap: 5px; font-size: 11px; color: #666; }
+#lightingComparison button[aria-pressed="true"] { background: #444; color: white; }
+#videoDialog { border: 0; border-radius: 12px; padding: 12px; width: min(900px, 90vw); max-height: 90dvh; background: #fff; }
+#videoDialog::backdrop { background: rgba(0,0,0,.72); }
+#videoHeader { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; color: #555; font-size: 13px; }
+#videoClose { margin: 0; padding: 6px 10px; font-size: 11px; background: #f2f4f5; color: #444; }
+#videoContent { width: 100%; aspect-ratio: 16 / 9; background: #111; color: white; display: grid; place-items: center; }
+#videoContent video, #videoContent iframe { display: block; width: 100%; height: 100%; border: 0; }
+#videoSourceLink { display: inline-block; margin-top: 10px; color: #555; font-size: 12px; }
+
 #musicControls { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 8px; }
 #musicMessage { flex-basis: 100%; text-align: center; font-size: 12px; color: #555; }
 #musicMessage:empty { display: none; }
@@ -332,6 +355,13 @@ button, .open {
   <div id="propertyTitle" hidden></div>
   <div id="floors" hidden></div>
   <div id="tourActions">
+    <a id="detailOpenButton" target="_blank" rel="noopener noreferrer" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h18v3H3zm0 6h18v3H3zm0 6h14v3H3z"/></svg>Detay</a>
+    <button id="videoOpenButton" type="button" hidden aria-haspopup="dialog"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3l15 9-15 9z"/></svg>Video</button>
+    <div id="lightingComparison" hidden role="group" aria-label="Aydınlatma karşılaştırması">
+      <span>Işık:</span>
+      <button type="button" data-lighting="current" aria-pressed="true">Mevcut</button>
+      <button type="button" data-lighting="neutral" aria-pressed="false">Nötr</button>
+    </div>
     <div id="panoramaButtons" hidden></div>
     <div id="musicControls" hidden role="group" aria-label="Portföy müziği">
       <span id="musicMessage" role="status" aria-live="polite"></span>
@@ -368,6 +398,12 @@ button, .open {
   <button id="reopenTour" type="button">Yeniden aç</button>
 </section>
 
+<dialog id="videoDialog" aria-labelledby="videoHeading">
+  <div id="videoHeader"><span id="videoHeading">Portföy videosu</span><button id="videoClose" type="button">× Kapat</button></div>
+  <div id="videoContent"></div>
+  <a id="videoSourceLink" target="_blank" rel="noopener noreferrer">Videoyu yeni sekmede aç</a>
+</dialog>
+
 <audio id="backgroundMusic" loop playsinline preload="auto"></audio>
 
 <div id="panel" hidden>
@@ -400,6 +436,12 @@ async function loadAppConfig() {
   try {
     const response = await fetch("./config/portfolios.json?rev=" + Date.now());
     if (response.ok) appConfig = await response.json();
+    const videoResponse = await fetch("./config/video-links.json?rev=" + Date.now());
+    if (videoResponse.ok) {
+      const links = await videoResponse.json();
+      videoLinks = links.videos || {};
+      detailLinks = links.details || {};
+    }
   } catch (error) {
     console.warn("Portföy ayarları yüklenemedi; varsayılan ayarlar kullanılacak.", error);
   }
@@ -437,6 +479,7 @@ document.getElementById("tourClose").addEventListener("click", closeTour);
 function closeTour() {
   if (tourClosed) return;
   tourClosed = true;
+  closeVideo(false);
   ++loadID;
   ++musicRequest;
   musicNeedsGesture = false;
@@ -490,6 +533,143 @@ let interacting = false;
 let transitionTime = 0;
 
 const clock = new THREE.Clock();
+
+let videoLinks = {};
+let detailLinks = {};
+const detailButton = document.getElementById("detailOpenButton");
+const videoButton = document.getElementById("videoOpenButton");
+const videoDialog = document.getElementById("videoDialog");
+const videoContent = document.getElementById("videoContent");
+const videoSourceLink = document.getElementById("videoSourceLink");
+let videoIsOpen = false;
+let activeVideoUrl = "";
+
+function canonicalVideoRef(value) {
+  const match = String(value || "").replace(/^ref-/i, "").match(/^0*(\d+)([vd])$/i);
+  return match ? String(Number(match[1])) + match[2].toLowerCase() : "";
+}
+
+function videoTarget(value) {
+  if (typeof value !== "string" || !value.trim()) return null;
+  let url;
+  try { url = new URL(value); } catch { return null; }
+  if (url.protocol !== "https:" || url.username || url.password) return null;
+  const host = url.hostname.toLowerCase();
+  if (host === "drive.google.com") {
+    const id = url.pathname.match(/^\/file\/d\/([\w-]+)(?:\/|$)/)?.[1] || url.searchParams.get("id");
+    if (id && /^[\w-]+$/.test(id)) {
+      const preview = new URL("https://drive.google.com/file/d/" + id + "/preview");
+      if (url.searchParams.has("resourcekey")) preview.searchParams.set("resourcekey", url.searchParams.get("resourcekey"));
+      return { kind: "iframe", url: preview.href, source: url.href };
+    }
+  }
+  if (["youtube.com", "www.youtube.com", "m.youtube.com", "youtu.be"].includes(host)) {
+    const id = host === "youtu.be" ? url.pathname.split("/")[1]
+      : url.searchParams.get("v") || url.pathname.match(/^\/(?:embed|shorts)\/([\w-]+)/)?.[1];
+    if (id && /^[\w-]{11}$/.test(id)) return {kind: "iframe", url: "https://www.youtube-nocookie.com/embed/" + id, source: url.href};
+  }
+  if (/\.(mp4|webm|ogv)$/i.test(url.pathname)) return {kind: "video", url: url.href, source: url.href};
+  return {kind: "link", url: url.href, source: url.href};
+}
+
+function applyVideo(folder, name) {
+  closeVideo(false);
+  const ref = canonicalVideoRef(getPortfolioConfig(folder, name).ref || folder);
+  activeVideoUrl = videoLinks[ref] || "";
+  videoButton.hidden = !videoTarget(activeVideoUrl);
+  const detail = videoTarget(detailLinks[ref]);
+  detailButton.hidden = !detail;
+  if (detail) detailButton.href = detail.source;
+  else detailButton.removeAttribute("href");
+}
+
+detailButton.addEventListener("click", () => {
+  ++musicRequest;
+  backgroundMusic.pause();
+  musicNeedsGesture = !!backgroundMusic.dataset.url;
+});
+
+function releaseVideo(allowMusicGesture = true) {
+  videoContent.querySelectorAll("video").forEach(video => {
+    video.pause();
+    video.removeAttribute("src");
+    video.load();
+  });
+  videoContent.replaceChildren(); // Removing an iframe stops its playback too.
+  videoIsOpen = false;
+  musicNeedsGesture = allowMusicGesture && !tourClosed && !!backgroundMusic.dataset.url;
+}
+
+function closeVideo(allowMusicGesture = true) {
+  if (!videoIsOpen && !videoDialog.open) return;
+  releaseVideo(allowMusicGesture);
+  if (videoDialog.open) videoDialog.close();
+}
+
+function openVideo() {
+  const target = videoTarget(activeVideoUrl);
+  if (!target || tourClosed) return;
+  closePanorama();
+  ++musicRequest;
+  musicNeedsGesture = false;
+  backgroundMusic.pause();
+  videoIsOpen = true;
+  videoContent.replaceChildren();
+  videoSourceLink.href = target.source;
+  if (target.kind === "link") {
+    const message = document.createElement("p");
+    message.textContent = "Videoyu aşağıdaki bağlantıdan açabilirsiniz.";
+    videoContent.appendChild(message);
+  } else {
+    const media = document.createElement(target.kind);
+    media.src = target.url;
+    if (target.kind === "video") {
+      media.controls = true;
+      media.playsInline = true;
+      media.preload = "metadata";
+    } else {
+      media.title = "Portföy videosu";
+      media.allow = "autoplay; fullscreen; picture-in-picture";
+      media.allowFullscreen = true;
+      media.referrerPolicy = "strict-origin-when-cross-origin";
+    }
+    videoContent.appendChild(media);
+  }
+  videoDialog.showModal();
+}
+videoButton.addEventListener("click", openVideo);
+document.getElementById("videoClose").addEventListener("click", () => closeVideo());
+videoDialog.addEventListener("close", () => { if (videoIsOpen) releaseVideo(); });
+
+const compareLighting = params.get("compareLight") === "1";
+const lightingControl = document.getElementById("lightingComparison");
+let lightingMode = "current";
+let hemisphereLight, keyLight, fillLight;
+let modelHasLights = false;
+
+function setLighting(mode) {
+  lightingMode = mode === "neutral" ? "neutral" : "current";
+  if (!hemisphereLight) return;
+  const neutral = lightingMode === "neutral";
+  hemisphereLight.visible = !neutral || !modelHasLights;
+  hemisphereLight.intensity = neutral ? 1 : 1.8;
+  hemisphereLight.groundColor.set(neutral ? 0xffffff : 0xaaaaaa);
+  keyLight.visible = !neutral;
+  fillLight.visible = !neutral;
+  lightingControl.querySelectorAll("button").forEach(button => {
+    const selected = button.dataset.lighting === lightingMode;
+    button.setAttribute("aria-pressed", String(selected));
+  });
+  // Reflection, materials, camera and model transforms are deliberately unchanged.
+}
+lightingControl.hidden = !compareLighting;
+lightingControl.querySelectorAll("button").forEach(button => {
+  button.addEventListener("click", () => {
+    pauseCinematic();
+    setLighting(button.dataset.lighting);
+  });
+});
+
 
 function safeName(name) {
 
@@ -705,7 +885,7 @@ function applyMusic(folder, name) {
   musicNeedsGesture = true;
 }
 function resumeMusicOnGesture(event) {
-  if (tourClosed || event.target.closest?.("#tourClose")) return;
+  if (tourClosed || videoIsOpen || event.target.closest?.("#tourClose, #videoOpenButton, #detailOpenButton, #lightingComparison")) return;
   if (!musicNeedsGesture || !backgroundMusic.dataset.url) return;
   musicNeedsGesture = false;
   void startMusic();
@@ -1123,6 +1303,7 @@ function pauseCinematic() {
 }
 
 function scheduleResume() {
+  if (compareLighting) return;
 
   clearTimeout(resumeTimer);
 
@@ -1169,9 +1350,8 @@ function initViewer() {
   viewer.appendChild(renderer.domElement);
   renderer.domElement.addEventListener("click", handlePanoramaMarkerClick);
 
-  scene.add(new THREE.HemisphereLight(
-    0xffffff, 0xaaaaaa, 1.8
-  ));
+  hemisphereLight = new THREE.HemisphereLight(0xffffff, 0xaaaaaa, 1.8);
+  scene.add(hemisphereLight);
 
   const light = new THREE.DirectionalLight(
     0xffffff, 2
@@ -1184,8 +1364,9 @@ function initViewer() {
   light.shadow.intensity = 0.55;
 
   scene.add(light);
+  keyLight = light;
 
-  const fillLight = new THREE.DirectionalLight(0xffffff, 0.5);
+  fillLight = new THREE.DirectionalLight(0xffffff, 0.5);
   fillLight.position.set(-5, 6, -5);
   scene.add(fillLight);
 
@@ -1460,6 +1641,7 @@ function openModel(folder, name) {
   currentFolder = folder;
   currentFileName = name;
   closePanorama();
+  applyVideo(folder, name);
   applyMusic(folder, name);
 
   const requestID = ++loadID;
@@ -1687,6 +1869,9 @@ for (let i = 0; i < 5; i++) {
 }
 
       currentModel = model;
+      modelHasLights = false;
+      model.traverse(object => { if (object.isLight) modelHasLights = true; });
+      setLighting(lightingMode);
 
       status.hidden = true;
 
@@ -1759,7 +1944,7 @@ for (let i = 0; i < 5; i++) {
 
       transitionTime = 1.5;
 
-      cinematicActive = true;
+      cinematicActive = !compareLighting;
 
     },
 
@@ -2132,3 +2317,4 @@ if (!tourClosed && file && isGLB(file)) {
 
 </body>
 </html>
+
