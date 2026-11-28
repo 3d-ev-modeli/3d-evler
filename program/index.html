@@ -470,6 +470,7 @@ async function loadAppConfig() {
     if (videoResponse.ok) {
       const links = await videoResponse.json();
       videoLinks = links.videos || {};
+      webVideos = links.webVideos || {};
       detailLinks = links.details || {};
       locationLinks = links.locations || {};
       prices = links.prices || {};
@@ -569,6 +570,7 @@ let transitionTime = 0;
 const clock = new THREE.Clock();
 
 let videoLinks = {};
+let webVideos = {};
 let detailLinks = {};
 let locationLinks = {}, prices = {};
 const locationButton = document.getElementById("locationOpenButton");
@@ -654,7 +656,8 @@ function videoTarget(value) {
 function applyVideo(folder, name) {
   closeVideo(false);
   const ref = canonicalVideoRef(getPortfolioConfig(folder, name).ref || folder);
-  activeVideoUrl = videoLinks[ref] || "";
+  const cached = webVideos[ref];
+  activeVideoUrl = typeof cached === "string" && /^\.\/media\/[\w-]+\.mp4$/.test(cached) ? new URL(cached, location.href).href : (videoLinks[ref] || "");
   activeLocation = locationTarget(locationLinks[ref]);
   locationButton.hidden = !activeLocation;
   const price = document.getElementById("portfolioPrice");
