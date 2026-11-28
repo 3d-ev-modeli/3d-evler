@@ -55,6 +55,8 @@ jobs:
           assert "./config/video-links.json" in html
           viewer.write_text(html.replace("./config/video-links.json", "./config/test-links-064v.json"), encoding="utf-8")
           PY
+      - name: Install video encoder
+        run: sudo apt-get update -qq && sudo apt-get install -y ffmpeg
       - name: Prepare browser-compatible video for isolated 064v test
         run: |
           python - <<'PY'
