@@ -31,3 +31,19 @@ jobs:
                       f.flush()
                       subprocess.run(['node', '--check', f.name], check=True)
           PY
+      - name: Verify live catalog without publishing data
+        if: github.event_name == 'push' && github.ref == 'refs/heads/portfolio-price-location'
+        env:
+          GOOGLE_DRIVE_API_KEY: ${{ secrets.GOOGLE_DRIVE_API_KEY }}
+          PORTFOLIO_DRIVE_FILE_ID: ${{ secrets.PORTFOLIO_DRIVE_FILE_ID }}
+        run: |
+          PYTHONPATH=program/tools python - <<'PY'
+          import os
+          from drive_import import Drive
+          from video_links import read_drive_catalog
+          assert os.environ.get("PORTFOLIO_DRIVE_FILE_ID"), "Catalog secret missing"
+          catalog = read_drive_catalog(Drive(os.environ.get("GOOGLE_DRIVE_API_KEY", "")), ".")
+          assert catalog, "Catalog unavailable"
+          for field in ("details", "locations", "prices", "videos"):
+              print("064v " + field + ": " + ("present" if catalog.get(field, {}).get("64v") else "empty"))
+          PY
