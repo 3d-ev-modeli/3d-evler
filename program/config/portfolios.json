@@ -4,7 +4,7 @@
   "villas": {
     "ref-064v": {
       "ref": "064v",
-      "location": "beylikdüzü",
+      "location": "deneme",
       "details": "6+1 Müstakil Villa",
       "driveFolderId": "1b8zdz4UZvnM2T5rvmknVxVrLdCYJgbGe",
       "floors": {
@@ -126,8 +126,8 @@
           "panoramas": []
         }
       },
-      "coverImage": "./covers/064v-50736bc4e125.jpg",
-      "sharePath": "./share/ref-064v.html?v=50736bc4e125",
+      "coverImage": "./covers/064v-c702269dc298.jpg",
+      "sharePath": "./share/ref-064v.html?v=c702269dc298",
       "musicUrl": "./audio/064v-c53e49b73047.mp3",
       "legacyFolders": [
         "ref-057",
