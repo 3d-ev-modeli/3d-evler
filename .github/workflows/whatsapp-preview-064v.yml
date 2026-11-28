@@ -27,7 +27,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: preview-064v
-          run-id: 46163404923
+          run-id: 46164626430
           github-token: ${{ github.token }}
           path: _preview
       - name: Prepare site and isolated preview
@@ -37,7 +37,7 @@ jobs:
           import shutil
           target = Path("program/share")
           target.mkdir(parents=True, exist_ok=True)
-          name = "test-064v-tl"
+          name = "test-064v-beyaz"
           shutil.copyfile("_preview/preview-064v.jpg", target / (name + ".jpg"))
           base = "https://3d-ev-modeli.github.io/3d-evler/program/share/"
           html = Path("program/share/ref-064v.html").read_text(encoding="utf-8")
@@ -49,7 +49,7 @@ jobs:
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -- program/share/test-064v-tl.html program/share/test-064v-tl.jpg
+          git add -- program/share/test-064v-beyaz.html program/share/test-064v-beyaz.jpg
           if ! git diff --cached --quiet; then
             git commit -m 'Persist isolated 064v WhatsApp preview'
             git pull --rebase origin main
