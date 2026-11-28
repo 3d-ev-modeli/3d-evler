@@ -218,7 +218,7 @@ def cover(image, ref, title, font_path, price=""):
 
 def share_page(base_url, ref, title, image_url, dimensions, revision):
     esc = lambda value: html.escape(str(value), quote=True)
-    share_url = f"{base_url}/program/share/ref-{ref}.html?v={revision}"
+    share_url = f"{base_url}/program/share/ref-{ref}-{revision}.html"
     description = "3D ve 360° interaktif gayrimenkul sunumu"
     return f'''<!doctype html>
 <html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -309,8 +309,9 @@ def prepare(drive, folder, config, ref="", location="", details="", base_url="",
         image_path = f"covers/{ref}-{digest}.jpg"
         pending["program/" + image_path] = cover_data
         record["coverImage"] = "./" + image_path
-        record["sharePath"] = f"./share/ref-{ref}.html?v={digest}"
+        record["sharePath"] = f"./share/ref-{ref}-{digest}.html"
         pending[f"program/share/ref-{ref}.html"] = share_page(base_url, ref, display, base_url + "/program/" + image_path, dimensions, digest).encode()
+        pending[f"program/share/ref-{ref}-{digest}.html"] = pending[f"program/share/ref-{ref}.html"]
         for alias in record.get("legacyFolders", []):
             if re.fullmatch(r"ref-\d{1,10}[vd]?", alias):
                 pending[f"program/share/{alias}.html"] = pending[f"program/share/ref-{ref}.html"]
@@ -465,9 +466,10 @@ def refresh_other_covers(drive, root, pending, catalog, imported_ref, base_url, 
         path = f"covers/{ref}-{digest}.jpg"
         pending["program/" + path] = data
         record["coverImage"] = "./" + path
-        record["sharePath"] = f"./share/ref-{ref}.html?v={digest}"
+        record["sharePath"] = f"./share/ref-{ref}-{digest}.html"
         page = share_page(base_url, ref, title, base_url + "/program/" + path, dimensions, digest).encode()
         pending[f"program/share/ref-{ref}.html"] = page
+        pending[f"program/share/ref-{ref}-{digest}.html"] = page
         for alias in record.get("legacyFolders", []):
             if re.fullmatch(r"ref-\d{1,10}[vd]?", alias):
                 pending[f"program/share/{alias}.html"] = page
