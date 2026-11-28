@@ -93,3 +93,18 @@ jobs:
         id: deployment
         with:
           artifact_name: pages-preview-${{ github.run_id }}-${{ github.run_attempt }}
+      - name: Diagnose public WhatsApp preview response
+        run: |
+          python - <<'PY'
+          import urllib.request, urllib.error
+          base = "https://3d-ev-modeli.github.io/3d-evler/program/share/"
+          for agent in ("Mozilla/5.0", "WhatsApp/2.24.7.81", "facebookexternalhit/1.1"):
+              for name in ("ref-064v.html", "test-064v-3kat.html", "test-064v-3kat.jpg"):
+                  try:
+                      req = urllib.request.Request(base+name, headers={"User-Agent":agent})
+                      with urllib.request.urlopen(req, timeout=25) as response:
+                          data = response.read(500000)
+                          print(agent, name, response.status, response.headers.get("Content-Type"), len(data), "JPEG" if data[:2]==b"\xff\xd8" else "OG image present" if b'property="og:image"' in data else "other")
+                  except Exception as exc:
+                      print(agent, name, type(exc).__name__, str(exc))
+          PY
