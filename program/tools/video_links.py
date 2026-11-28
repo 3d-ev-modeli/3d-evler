@@ -130,11 +130,11 @@ def format_price(value):
 def read_drive_catalog(drive, root):
     source_path = Path(root) / "program/config/catalog-source.json"
     if not source_path.exists():
-        return False
+        return None
     source = json.loads(source_path.read_text(encoding="utf-8"))
     file_id = source.get("driveFileId", "")
     if not file_id:
-        return False
+        return None
     if not re.fullmatch(r"[A-Za-z0-9_-]{10,200}", file_id):
         raise ValueError("Excel kaynak dosyasının Drive kimliği geçersiz.")
     drive.resource_keys[file_id] = source.get("resourceKey", "")
