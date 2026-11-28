@@ -4,6 +4,7 @@ import argparse
 from decimal import Decimal, InvalidOperation
 import io
 import json
+import os
 from pathlib import Path, PurePosixPath
 import re
 import unicodedata
@@ -132,7 +133,7 @@ def read_drive_catalog(drive, root):
     if not source_path.exists():
         return None
     source = json.loads(source_path.read_text(encoding="utf-8"))
-    file_id = source.get("driveFileId", "")
+    file_id = os.environ.get("PORTFOLIO_DRIVE_FILE_ID", "").strip() or source.get("driveFileId", "")
     if not file_id:
         return None
     if not re.fullmatch(r"[A-Za-z0-9_-]{10,200}", file_id):
