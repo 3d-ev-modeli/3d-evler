@@ -105,7 +105,7 @@ input[type=range]{width:100%;accent-color:#176b43;cursor:pointer}
     </div>
 
     <div class="section-title">360° fotoğraf noktaları</div>
-    <p class="small">Önce Drive fotoğrafını seç, sonra makette bulunduğu zemine bir kez tıkla. Yön ayarı gerekmez.</p>
+    <p class="small">Önce Drive fotoğrafını seç, sonra çekildiği zemine bir kez tıkla. Zemin katta bina dışındaki boş alana da yerleştirebilirsin. Yön ayarı gerekmez.</p>
     <div id="panoramaPhotoList"><div class="small">Fotoğraflar yükleniyor…</div></div>
     <label for="panoramaSelect">Yerleştirilen 360° noktası</label>
     <select id="panoramaSelect" disabled><option>Henüz 360° noktası yok</option></select>
@@ -521,11 +521,19 @@ function handleModelClick(event){
     const normal=candidate.face.normal.clone().applyMatrix3(normalMatrix).normalize();
     if(normal.y>0.55){hit=candidate;break;}
   }
-  if(!hit){
-    setStatus("Ok yatay zemine konulmalı. Duvara değil, zemin veya merdiven basamağına tıkla.");
+  const isPanorama=placementAction==="newPanorama"||placementAction==="movePanorama";
+  const isGround=/zemin|ground/i.test(floorSelect.value);
+  let point=hit?.point.clone();
+  if(!point && isPanorama && isGround && hits.length===0){
+    const plane=new THREE.Plane(new THREE.Vector3(0,1,0),0);
+    const outside=raycaster.ray.intersectPlane(plane,new THREE.Vector3());
+    const limit=Math.max(modelSize.x,modelSize.z,0.1)*1.5;
+    if(outside && Math.abs(outside.x)<=limit && Math.abs(outside.z)<=limit) point=outside;
+  }
+  if(!point){
+    setStatus(isPanorama ? "Yatay zemine tıkla. Zemin katta bina dışındaki boş alan da kullanılabilir." : "Ok yatay zemine konulmalı. Duvara değil, zemin veya merdiven basamağına tıkla.");
     return;
   }
-  const point=hit.point.clone();
 
   if(placementAction==="newPanorama"||placementAction==="movePanorama"){
     const panoramas=currentPanoramas();
