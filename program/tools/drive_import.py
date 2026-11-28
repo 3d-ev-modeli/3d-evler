@@ -423,6 +423,45 @@ def prepare(drive, folder, config, ref="", location="", details="", base_url="",
     return pending, summary
 
 
+def refresh_other_covers(drive, root, pending, catalog, imported_ref, base_url, font_path):
+    """Refresh changed prices on existing Drive-backed portfolios without reimporting models."""
+    from video_links import typed_ref, format_price
+    root = Path(root)
+    config = json.loads(pending["program/config/portfolios.json"])
+    previous_path = root / "program/config/video-links.json"
+    previous = json.loads(previous_path.read_text(encoding="utf-8")).get("prices", {}) if previous_path.exists() else {}
+    prices = catalog.get("prices", {})
+    for record in config.get("villas", {}).values():
+        ref = str(record.get("ref", ""))
+        if ref == imported_ref or not re.fullmatch(r"\d+[vd]", ref) or not record.get("driveFolderId"):
+            continue
+        key = typed_ref(ref, ref[-1])
+        price = format_price(prices.get(key, ""))
+        if price == format_price(previous.get(key, "")):
+            continue
+        children = drive.children(record["driveFolderId"])
+        item = choose(children, lambda f: normalize(Path(f["name"]).stem) in ("kapak", "cover") and Path(f["name"]).suffix.lower() in IMAGE_EXT, "kapak fotoğrafı")
+        if not item:
+            item = choose(children, lambda f: Path(f["name"]).suffix.lower() in IMAGE_EXT, "kapak fotoğrafı")
+        if not item:
+            if record.get("coverImage"):
+                raise ImportError_("Fiyatı değişen portföyün kaynak kapağı bulunamadı: " + ref)
+            continue
+        title = record.get("location", "") + (" · " + record["details"] if record.get("details") else "")
+        data, dimensions = cover(image_bytes(drive.download(item, 30 * 1024 * 1024)), ref, title, font_path, price)
+        digest = hashlib.sha256(data).hexdigest()[:12]
+        path = f"covers/{ref}-{digest}.jpg"
+        pending["program/" + path] = data
+        record["coverImage"] = "./" + path
+        record["sharePath"] = f"./share/ref-{ref}.html?v={digest}"
+        page = share_page(base_url, ref, title, base_url + "/program/" + path, dimensions, digest).encode()
+        pending[f"program/share/ref-{ref}.html"] = page
+        for alias in record.get("legacyFolders", []):
+            if re.fullmatch(r"ref-\d{1,10}[vd]?", alias):
+                pending[f"program/share/{alias}.html"] = page
+    pending["program/config/portfolios.json"] = (json.dumps(config, ensure_ascii=False, indent=2) + "\n").encode()
+
+
 def apply_plan(root, pending):
     root = Path(root).resolve()
     for relative in pending:
@@ -457,6 +496,8 @@ def main():
         catalog = read_drive_catalog(drive, args.root)
         pending, result = prepare(drive, args.folder, config,
                                   args.ref, args.location, args.details, args.base_url.rstrip("/"), args.font, prices=(catalog or {}).get("prices", {}))
+        if catalog:
+            refresh_other_covers(drive, args.root, pending, catalog, result["ref"], args.base_url.rstrip("/"), args.font)
         result["catalogSynced"] = sync_drive_catalog(drive, args.root, pending, catalog=catalog)
         result["changed"] = len(apply_plan(args.root, pending))
         Path("import-result.json").write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
