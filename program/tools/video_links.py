@@ -167,6 +167,50 @@ def sync_drive_catalog(drive, root, pending, catalog=None):
     pending["program/config/video-links.json"] = (json.dumps(payload, ensure_ascii=True, indent=2) + "\n").encode("utf-8")
     return True
 
+def prepare_web_videos(drive, root, pending):
+    """Cache public Drive videos as browser-compatible MP4s; leave original links intact."""
+    import hashlib, subprocess, tempfile
+    from urllib.parse import parse_qs
+    root = Path(root)
+    path = "program/config/video-links.json"
+    payload = json.loads(pending[path])
+    old_path = root / path
+    old = json.loads(old_path.read_text()) if old_path.exists() else {}
+    assets = {}
+    for ref, url in payload["videos"].items():
+        u = urlsplit(url)
+        if u.hostname != "drive.google.com":
+            continue
+        m = re.match(r"/file/d/([\w-]+)", u.path)
+        fid = m[1] if m else parse_qs(u.query).get("id", [""])[0]
+        if not re.fullmatch(r"[\w-]+", fid):
+            continue
+        try:
+            drive.resource_keys[fid] = parse_qs(u.query).get("resourcekey", [""])[0]
+            # Hash actual source bytes so changes to the same Drive file are detected.
+            data = drive.download({"id": fid, "name": "video.mp4"}, 300 * 1024 * 1024)
+            digest = hashlib.sha256(data).hexdigest()[:16]
+            rel = f"media/{ref}-{digest}.mp4"
+            target = root / "program" / rel
+            if not target.is_file():
+                with tempfile.TemporaryDirectory() as tmp:
+                    src = Path(tmp) / "source"
+                    out = Path(tmp) / "video.mp4"
+                    src.write_bytes(data)
+                    subprocess.run(["ffmpeg","-hide_banner","-loglevel","error","-y","-i",str(src),"-vf","scale=720:1280:force_original_aspect_ratio=decrease:force_divisible_by=2","-c:v","libx264","-pix_fmt","yuv420p","-preset","fast","-crf","22","-maxrate","4M","-bufsize","8M","-c:a","aac","-b:a","128k","-movflags","+faststart",str(out)],check=True,timeout=600)
+                    if out.stat().st_size >= 95000000:
+                        raise ValueError("Video boyutu sınırı aşıldı")
+                    pending["program/" + rel] = out.read_bytes()
+            assets[ref] = "./" + rel
+        except Exception as exc:
+            print("UYARI: Video dönüştürülemedi: " + ref + " (" + type(exc).__name__ + ")")
+            # Only reuse an old asset if its source link is unchanged.
+            previous = old.get("webVideos", {}).get(ref, "")
+            if old.get("videos", {}).get(ref) == url and re.fullmatch(r"\./media/[\w-]+\.mp4", previous) and (root / "program" / previous).is_file():
+                assets[ref] = previous
+    payload["webVideos"] = assets
+    pending[path] = (json.dumps(payload, ensure_ascii=True, indent=2) + "\n").encode()
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("workbook")
