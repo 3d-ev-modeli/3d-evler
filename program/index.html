@@ -590,7 +590,7 @@ function displayPrice(value) {
   raw = raw.replace(/₺|\bTL\b/gi,"").trim();
   let n = Number(raw);
   if (/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(raw)) n = Number(raw.replace(/\./g,"").replace(",","."));
-  return Number.isFinite(n) && n > 0 ? "₺" + n.toLocaleString("tr-TR",{maximumFractionDigits:2}) : "";
+  return Number.isFinite(n) && n > 0 ? n.toLocaleString("tr-TR",{maximumFractionDigits:2}) + " TL" : "";
 }
 locationButton.addEventListener("click",()=>{ if (!activeLocation || tourClosed) return; closePanorama(); ++musicRequest; backgroundMusic.pause(); musicNeedsGesture=!!backgroundMusic.dataset.url; locationFrame.src=activeLocation; locationDialog.showModal(); });
 document.getElementById("locationClose").addEventListener("click",()=>locationDialog.close());
