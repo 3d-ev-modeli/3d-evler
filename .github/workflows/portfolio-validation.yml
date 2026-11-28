@@ -80,3 +80,41 @@ jobs:
           name: preview-064v
           path: preview-064v.jpg
           retention-days: 1
+      - name: Test automatic price change and cover refresh without publishing
+        if: github.event_name == 'push' && github.ref == 'refs/heads/portfolio-price-location'
+        env:
+          GOOGLE_DRIVE_API_KEY: ${{ secrets.GOOGLE_DRIVE_API_KEY }}
+          PORTFOLIO_DRIVE_FILE_ID: ${{ secrets.PORTFOLIO_DRIVE_FILE_ID }}
+        run: |
+          export PORTFOLIO_PRICE_FONT="$RUNNER_TEMP/Poppins-ExtraBold.ttf"
+          PYTHONPATH=program/tools python - <<'PY'
+          import copy, json, os, tempfile
+          from pathlib import Path
+          from drive_import import Drive, refresh_other_covers
+          from video_links import read_drive_catalog
+          drive = Drive(os.environ["GOOGLE_DRIVE_API_KEY"])
+          catalog = read_drive_catalog(drive, ".")
+          record = json.loads(Path("program/config/portfolios.json").read_text())["villas"]["ref-064v"]
+          config = {"villas": {"ref-064v": record}}
+          with tempfile.TemporaryDirectory() as tmp:
+              root = Path(tmp)
+              previous = root / "program/config/video-links.json"
+              previous.parent.mkdir(parents=True)
+              previous.write_text(json.dumps({"prices": {"64v": 24000000}}))
+              pending = {"program/config/portfolios.json": json.dumps(config).encode()}
+              modified = copy.deepcopy(catalog)
+              modified["prices"]["64v"] = 25000000
+              refresh_other_covers(drive, root, pending, modified, "other", "https://3d-ev-modeli.github.io/3d-evler", "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf")
+              first = json.loads(pending["program/config/portfolios.json"])["villas"]["ref-064v"]
+              first_img = first["coverImage"]
+              assert "program/" + first_img.removeprefix("./") in pending
+              assert b"og:image" in pending["program/share/ref-064v.html"]
+              modified["prices"]["64v"] = 26000000
+              refresh_other_covers(drive, root, pending, modified, "other", "https://3d-ev-modeli.github.io/3d-evler", "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf")
+              second = json.loads(pending["program/config/portfolios.json"])["villas"]["ref-064v"]
+              assert second["coverImage"] != first_img
+              assert second["sharePath"] != first["sharePath"]
+              assert second["coverImage"].removeprefix("./").encode() in pending["program/share/ref-064v.html"]
+              assert second["floors"] == record["floors"]
+              print("PASS: price change regenerates cover and share URL; floors untouched; no live data written.")
+          PY
