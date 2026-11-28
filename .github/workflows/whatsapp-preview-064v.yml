@@ -86,5 +86,10 @@ jobs:
       - uses: actions/upload-pages-artifact@v4
         with:
           path: _site
+          name: pages-preview-${{ github.run_id }}-${{ github.run_attempt }}
+      - name: Allow artifact metadata to propagate
+        run: sleep 15
       - uses: actions/deploy-pages@v4
         id: deployment
+        with:
+          artifact_name: pages-preview-${{ github.run_id }}-${{ github.run_attempt }}
