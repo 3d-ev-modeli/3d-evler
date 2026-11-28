@@ -1978,8 +1978,12 @@ async function openVilla(folder) {
     );
 
     if (tourClosed) return;
+    const activeFloors = appConfig.villas?.[folder]?.activeFloors;
+    // 064v predates activeFloors and retains its old ground GLB as a backup.
+    const selectedFloors = Array.isArray(activeFloors) ? new Set(activeFloors) :
+      folder === "ref-064v" ? new Set(["bodrum-kat.glb","zemin-iyilestirilmis.glb","1-kat.glb"]) : null;
     const models = files
-      .filter(f => f.type === "file" && isGLB(f.name))
+      .filter(f => f.type === "file" && isGLB(f.name) && (!selectedFloors || selectedFloors.has(f.name)))
       .sort((a, b) => {
         const ra = floorRank(a.name);
         const rb = floorRank(b.name);
