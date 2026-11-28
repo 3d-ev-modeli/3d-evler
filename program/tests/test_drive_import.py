@@ -4,11 +4,13 @@ import io
 import json
 from pathlib import Path
 import struct
+import sys
 import tempfile
 import unittest
 
 from PIL import Image
 
+sys.path.insert(0, str(Path(__file__).parents[1] / "tools"))
 spec = importlib.util.spec_from_file_location("drive_import", Path(__file__).parents[1] / "tools/drive_import.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
