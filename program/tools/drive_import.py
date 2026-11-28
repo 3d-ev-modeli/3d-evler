@@ -513,6 +513,9 @@ def main():
         if catalog:
             refresh_other_covers(drive, args.root, pending, catalog, result["ref"], args.base_url.rstrip("/"), args.font)
         result["catalogSynced"] = sync_drive_catalog(drive, args.root, pending, catalog=catalog)
+        if result["catalogSynced"]:
+            from video_links import prepare_web_videos
+            prepare_web_videos(drive, args.root, pending)
         result["changed"] = len(apply_plan(args.root, pending))
         Path("import-result.json").write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
         print(f"Ref {result['ref']}: {result['models']} model, {result['photos360']} adet 360 fotoğraf; {result['unplaced']} fotoğraf konum bekliyor.")
