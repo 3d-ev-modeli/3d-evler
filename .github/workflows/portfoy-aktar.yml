@@ -51,6 +51,11 @@ jobs:
           python-version: '3.12'
       - name: Fotoğraf araçlarını hazırla
         run: python -m pip install -r program/tools/requirements.txt
+      - name: Poppins ExtraBold fontunu hazırla
+        run: |
+          mkdir -p "$RUNNER_TEMP/portfolio-fonts"
+          curl --fail --location --retry 3 "https://raw.githubusercontent.com/google/fonts/main/ofl/poppins/Poppins-ExtraBold.ttf" -o "$RUNNER_TEMP/portfolio-fonts/Poppins-ExtraBold.ttf"
+          echo "PORTFOLIO_PRICE_FONT=$RUNNER_TEMP/portfolio-fonts/Poppins-ExtraBold.ttf" >> "$GITHUB_ENV"
       - name: Kurulumu kontrol et
         env:
           GOOGLE_DRIVE_API_KEY: ${{ secrets.GOOGLE_DRIVE_API_KEY }}
