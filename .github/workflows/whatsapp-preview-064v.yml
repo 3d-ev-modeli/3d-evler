@@ -1,0 +1,51 @@
+name: 064v WhatsApp preview
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/whatsapp-preview-064v.yml']
+concurrency:
+  group: portfolio-pages-main
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: preview-064v
+          run-id: 46163404923
+          github-token: ${{ github.token }}
+          path: _preview
+      - name: Prepare site and isolated preview
+        run: |
+          python program/tools/prepare_site.py
+          python - <<'PY'
+          from pathlib import Path
+          import shutil
+          target = Path("_site/program/share")
+          target.mkdir(parents=True, exist_ok=True)
+          name = "test-064v-tl"
+          shutil.copyfile("_preview/preview-064v.jpg", target / (name + ".jpg"))
+          base = "https://3d-ev-modeli.github.io/3d-evler/program/share/"
+          html = Path("program/share/ref-064v.html").read_text(encoding="utf-8")
+          html = html.replace(base + "ref-064v.html?v=f3636f5f11c8", base + name + ".html")
+          html = html.replace("https://3d-ev-modeli.github.io/3d-evler/program/covers/064v-f3636f5f11c8.jpg", base + name + ".jpg")
+          (target / (name + ".html")).write_text(html, encoding="utf-8")
+          PY
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+      - uses: actions/deploy-pages@v4
+        id: deployment
