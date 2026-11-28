@@ -198,7 +198,12 @@ def cover(image, ref, title, font_path, price=""):
         while draw.textlength(price, font=price_font) > width - 2*x and price_size > 16:
             price_size -= 1
             price_font = ImageFont.truetype(price_font_path, price_size)
-        draw.text((x, height - x), price, font=price_font, anchor="ls", fill="#d51011", stroke_width=max(2, round(2 * scale)), stroke_fill="#ffffff")
+        from PIL import ImageFilter
+        shadow = Image.new("RGBA", result.size)
+        ImageDraw.Draw(shadow).text((x + max(2, round(3*scale)), height - x + max(2, round(3*scale))), price, font=price_font, anchor="ls", fill=(0,0,0,240), stroke_width=max(2,round(3*scale)), stroke_fill=(0,0,0,220))
+        result.paste(shadow.filter(ImageFilter.GaussianBlur(max(1,round(2*scale)))), (0,0), shadow.filter(ImageFilter.GaussianBlur(max(1,round(2*scale)))).getchannel("A"))
+        draw = ImageDraw.Draw(result)
+        draw.text((x, height - x), price, font=price_font, anchor="ls", fill="#ffffff")
     draw.text((x, height + band / 2), title, font=title_font, anchor="lm", fill="#292929")
     output = io.BytesIO()
     for quality in (82, 74, 65, 55):
