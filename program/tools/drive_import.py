@@ -293,6 +293,11 @@ def prepare(drive, folder, config, ref="", location="", details="", base_url="",
         model_names[item["id"]] = name
         keys[floor_key(name)] = name
         floors.setdefault(name, {})["driveModelId"] = item["id"]
+    # The Drive folder is authoritative for active floors. Keep older GLB
+    # files in Git for recovery, but do not expose them as selectable floors.
+    record["activeFloors"] = list(model_names.values())
+    # Preserve the previous floor metadata for marker recovery and legacy
+    # exports; activeFloors, not the archived metadata, controls selection.
     cover_item = choose(children, lambda f: normalize(Path(f["name"]).stem) in ("kapak", "cover") and Path(f["name"]).suffix.lower() in IMAGE_EXT, "kapak fotoğrafı")
     if not cover_item:
         cover_item = choose(children, lambda f: Path(f["name"]).suffix.lower() in IMAGE_EXT, "kapak fotoğrafı")
