@@ -176,13 +176,14 @@ def cover(image, ref, title, font_path, price=""):
     tag_font = badge_font
     tag_width = draw.textlength("3D", font=tag_font) + 38 * scale
     tag_height = badge_height
-    tag_x = width - x - tag_width
-    draw.rounded_rectangle((tag_x, y, width - x, y + tag_height), radius=9, fill="#ff4f1f")
-    draw.text((tag_x + tag_width / 2, y + tag_height / 2), "3D", font=tag_font, anchor="mm", fill="white", stroke_width=max(1, round(scale)), stroke_fill="white")
     logo_font = ImageFont.truetype(caption_font_path, max(20, round(31 * scale)))
     logo_width = max(round(tag_width * 1.10), draw.textlength("360°", font=logo_font) + 26.4 * scale)
+    badge_center = width - x - max(tag_width, logo_width) / 2
+    tag_x = badge_center - tag_width / 2
+    draw.rounded_rectangle((tag_x, y, tag_x + tag_width, y + tag_height), radius=9, fill="#ff4f1f")
+    draw.text((tag_x + tag_width / 2, y + tag_height / 2), "3D", font=tag_font, anchor="mm", fill="white", stroke_width=max(1, round(scale)), stroke_fill="white")
     logo_height = max(40, round(59.4 * scale))
-    logo_right = width - x
+    logo_right = badge_center + logo_width / 2
     logo_top = y + tag_height + 12 * scale
     draw.rounded_rectangle((logo_right - logo_width, logo_top, logo_right, logo_top + logo_height),
                            radius=round(logo_height / 2), fill="#078fa9", outline="white", width=max(1, round(2 * scale)))
