@@ -33,7 +33,7 @@ def safe_video_url(value):
     return value
 
 def extract_video_links(path):
-    result, detail_result, found_kinds = {}, {}, set()
+    result, detail_result, location_result, price_result, found_kinds = {}, {}, {}, {}, set()
     with zipfile.ZipFile(path) as archive:
         if sum(i.file_size for i in archive.infolist()) > 100 * 1024 * 1024:
             raise ValueError("Excel dosyası çok büyük.")
@@ -75,6 +75,10 @@ def extract_video_links(path):
             header = rows[header_index]
             video_columns = [col for col, c in header.items() if normalized(c[0]) == "video"]
             detail_columns = [col for col, c in header.items() if normalized(c[0]) == "detay"]
+            location_columns = [col for col, c in header.items() if normalized(c[0]) == "konum"]
+            price_columns = [col for col, c in header.items() if normalized(c[0]) in ("fiyat", "satis fiyati", "fiyat tl")]
+            if len(location_columns) > 1 or len(price_columns) > 1:
+                raise ValueError("Konum veya Fiyat sütunu belirsiz.")
             ref_columns = [col for col, c in header.items() if normalized(c[0]) in ("ref", "no", "numara", "portfoy no", "portfoy", "foto")]
             if len(video_columns) != 1 or len(ref_columns) != 1:
                 raise ValueError("Video veya portföy numarası sütunu belirsiz.")
@@ -84,7 +88,11 @@ def extract_video_links(path):
                 key = typed_ref(row.get(ref_columns[0], ("",))[0], kind)
                 if not key:
                     continue
-                for columns, output in ((video_columns, result), (detail_columns, detail_result)):
+                price = str(row.get(price_columns[0], ("",))[0]).strip() if price_columns else ""
+                if key in price_result and price_result[key] != price:
+                    raise ValueError("Aynı portföy için farklı fiyat kayıtları var: " + key)
+                price_result[key] = price
+                for columns, output in ((video_columns, result), (detail_columns, detail_result), (location_columns, location_result)):
                     value, address, formula = row.get(columns[0], ("", "", "")) if columns else ("", "", "")
                     formula_link = re.match(r'\s*(?:_xlfn\.)?HYPERLINK\s*\(\s*"((?:[^"\n]|"")*)"', formula, re.I)
                     url = safe_video_url(links.get(address) or (formula_link[1].replace('""', '"') if formula_link else value))
@@ -93,14 +101,14 @@ def extract_video_links(path):
                     output[key] = url
     if found_kinds != {"v", "d"}:
         raise ValueError("Villalar ve Daireler sayfalarının ikisi de gerekli.")
-    return {"version": 1, "videos": result, "details": detail_result}
+    return {"version": 1, "videos": result, "details": detail_result, "locations": location_result, "prices": price_result}
 
 def published_links(payload, config):
     keys = {typed_ref(record.get("ref", ""), kind)
             for collection in (config.get("villas", {}), config.get("models", {}))
             for record in collection.values() for kind in ("v", "d")}
     return {"version": 1, **{field: {key: payload.get(field, {}).get(key, "")
-            for key in sorted(keys - {None})} for field in ("videos", "details")}}
+            for key in sorted(keys - {None})} for field in ("videos", "details", "locations", "prices")}}
 
 def sync_drive_catalog(drive, root, pending):
     source_path = Path(root) / "program/config/catalog-source.json"
