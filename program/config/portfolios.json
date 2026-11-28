@@ -4,7 +4,7 @@
   "villas": {
     "ref-064v": {
       "ref": "064v",
-      "location": "Beylikdüzü Gürpınar",
+      "location": "beylikdüzü villa",
       "details": "6+1 Müstakil Villa",
       "driveFolderId": "1b8zdz4UZvnM2T5rvmknVxVrLdCYJgbGe",
       "floors": {
@@ -97,10 +97,15 @@
             "moveAmount": 0.006207815022994945
           },
           "stairArrows": []
+        },
+        "zemin-iyilestirilmis.glb": {
+          "driveModelId": "10HPqyGsg9qc-s3mpsxfzXGqxSYB2qc57",
+          "panoramaPhotos": [],
+          "panoramas": []
         }
       },
-      "coverImage": "./covers/064v-e2d8306909cc.jpg",
-      "sharePath": "./share/ref-064v.html?v=e2d8306909cc",
+      "coverImage": "./covers/064v-f3636f5f11c8.jpg",
+      "sharePath": "./share/ref-064v.html?v=f3636f5f11c8",
       "musicUrl": "./audio/064v-c53e49b73047.mp3",
       "legacyFolders": [
         "ref-057",
