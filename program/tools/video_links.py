@@ -79,6 +79,13 @@ def extract_video_links(path):
             detail_columns = [col for col, c in header.items() if normalized(c[0]) == "detay"]
             location_columns = [col for col, c in header.items() if normalized(c[0]) == "konum"]
             price_columns = [col for col, c in header.items() if normalized(c[0]) in ("fiyat", "satis fiyati", "fiyat tl")]
+            # The catalog has a neighborhood column and a separate photo-link
+            # column both named Konum. Select the latter only if it contains URLs.
+            if len(location_columns) > 1:
+                location_columns = [col for col in location_columns if any(
+                    safe_video_url(links.get(row.get(col, ("", "", ""))[1]) or row.get(col, ("", "", ""))[0])
+                    or re.match(r'\s*(?:_xlfn\.)?HYPERLINK\s*\(', row.get(col, ("", "", ""))[2], re.I)
+                    for row in rows[header_index + 1:])]
             if len(location_columns) > 1 or len(price_columns) > 1:
                 raise ValueError("Konum veya Fiyat sütunu belirsiz.")
             ref_columns = [col for col, c in header.items() if normalized(c[0]) in ("ref", "no", "numara", "portfoy no", "portfoy", "foto")]
