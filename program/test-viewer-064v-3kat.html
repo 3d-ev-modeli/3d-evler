@@ -425,7 +425,7 @@ button, .open {
 </section>
 
 <dialog id="videoDialog" aria-labelledby="videoHeading">
-  <div id="videoHeader"><span id="videoHeading">Portföy videosu</span><button id="videoClose" type="button">× Kapat</button></div>
+  <div id="videoHeader"><span id="videoHeading">Portföy videosu · Test 2</span><button id="videoClose" type="button">× Kapat</button></div>
   <div id="videoContent"></div>
   <a id="videoSourceLink" target="_blank" rel="noopener noreferrer">Videoyu yeni sekmede aç</a>
 </dialog>
@@ -715,11 +715,10 @@ function openVideo() {
       media.disablePictureInPicture = true;
       if (target.fallback) media.addEventListener("error", () => {
         if (!videoIsOpen || !media.isConnected) return;
-        const frame = document.createElement("iframe");
-        frame.src = target.fallback;
-        frame.title = "Portföy videosu (Drive yedek oynatıcı)";
-        frame.allow = "autoplay";
-        media.replaceWith(frame);
+        const message = document.createElement("div");
+        message.style.cssText = "color:white;padding:20px;text-align:center";
+        message.textContent = "Doğrudan video oynatılamadı (hata " + (media.error?.code || "?") + "). Kapat düğmesiyle makete dönebilirsiniz.";
+        media.replaceWith(message);
       }, {once:true});
     } else {
       media.title = "Portföy videosu";
