@@ -100,7 +100,12 @@ def extract_video_links(path):
                 for columns, output in ((video_columns, result), (detail_columns, detail_result), (location_columns, location_result)):
                     value, address, formula = row.get(columns[0], ("", "", "")) if columns else ("", "", "")
                     formula_link = re.match(r'\s*(?:_xlfn\.)?HYPERLINK\s*\(\s*"((?:[^"\n]|"")*)"', formula, re.I)
-                    url = safe_video_url(links.get(address) or (formula_link[1].replace('""', '"') if formula_link else value))
+                    raw_url = links.get(address) or (formula_link[1].replace('""', '"') if formula_link else value)
+                    try:
+                        url = safe_video_url(raw_url)
+                    except ValueError:
+                        field = "Video" if output is result else "Detay" if output is detail_result else "Konum"
+                        raise ValueError(f"{key}: {field} sütununda geçersiz HTTPS bağlantısı ({address}).") from None
                     if key in output and output[key] != url:
                         raise ValueError("Aynı portföy için farklı bağlantı kayıtları var: " + key)
                     output[key] = url
