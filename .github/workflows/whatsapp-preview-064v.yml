@@ -27,7 +27,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: preview-064v
-          run-id: 46165846837
+          run-id: 46166802733
           github-token: ${{ github.token }}
           path: _preview
       - name: Read approved development viewer and live catalog
@@ -39,7 +39,7 @@ jobs:
           mkdir -p "$RUNNER_TEMP/preview-tools"
           git show FETCH_HEAD:program/tools/video_links.py > "$RUNNER_TEMP/preview-tools/video_links.py"
           git show FETCH_HEAD:program/tools/drive_import.py > "$RUNNER_TEMP/preview-tools/drive_import.py"
-          git show FETCH_HEAD:program/index.html > program/test-viewer-064v-kapat.html
+          git show FETCH_HEAD:program/index.html > program/test-viewer-064v-3kat.html
           python -m pip install -r program/tools/requirements.txt
           PYTHONPATH="$RUNNER_TEMP/preview-tools" python - <<'PY'
           import json, os
@@ -50,7 +50,7 @@ jobs:
           assert all(catalog.get(field, {}).get("64v") for field in ("prices","locations","details","videos"))
           payload = {"version": 1, **{field: {"64v": catalog[field]["64v"]} for field in ("prices","locations","details","videos")}}
           Path("program/config/test-links-064v.json").write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
-          viewer = Path("program/test-viewer-064v-kapat.html")
+          viewer = Path("program/test-viewer-064v-3kat.html")
           html = viewer.read_text(encoding="utf-8")
           assert "./config/video-links.json" in html
           viewer.write_text(html.replace("./config/video-links.json", "./config/test-links-064v.json"), encoding="utf-8")
@@ -62,20 +62,20 @@ jobs:
           import shutil
           target = Path("program/share")
           target.mkdir(parents=True, exist_ok=True)
-          name = "test-064v-kapat"
+          name = "test-064v-3kat"
           shutil.copyfile("_preview/preview-064v.jpg", target / (name + ".jpg"))
           base = "https://3d-ev-modeli.github.io/3d-evler/program/share/"
           html = Path("program/share/ref-064v.html").read_text(encoding="utf-8")
           html = html.replace(base + "ref-064v.html?v=f3636f5f11c8", base + name + ".html")
           html = html.replace("https://3d-ev-modeli.github.io/3d-evler/program/covers/064v-f3636f5f11c8.jpg", base + name + ".jpg")
-          html = html.replace("../?villa=ref-064v", "../test-viewer-064v-kapat.html?villa=ref-064v")
+          html = html.replace("../?villa=ref-064v", "../test-viewer-064v-3kat.html?villa=ref-064v")
           (target / (name + ".html")).write_text(html, encoding="utf-8")
           PY
       - name: Preserve only the two preview files in main
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -- program/share/test-064v-kapat.html program/share/test-064v-kapat.jpg program/test-viewer-064v-kapat.html program/config/test-links-064v.json
+          git add -- program/share/test-064v-3kat.html program/share/test-064v-3kat.jpg program/test-viewer-064v-3kat.html program/config/test-links-064v.json
           if ! git diff --cached --quiet; then
             git commit -m 'Persist isolated 064v WhatsApp preview'
             git pull --rebase origin main
