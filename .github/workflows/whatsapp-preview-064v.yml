@@ -55,6 +55,40 @@ jobs:
           assert "./config/video-links.json" in html
           viewer.write_text(html.replace("./config/video-links.json", "./config/test-links-064v.json"), encoding="utf-8")
           PY
+      - name: Prepare browser-compatible video for isolated 064v test
+        run: |
+          python - <<'PY'
+          import json, urllib.request, urllib.parse, re, shutil
+          from pathlib import Path
+          p=Path("program/config/test-links-064v.json")
+          config=json.loads(p.read_text())
+          u=urllib.parse.urlsplit(config["videos"]["64v"])
+          match=re.search(r"/file/d/([\w-]+)",u.path)
+          query={"id":match[1] if match else urllib.parse.parse_qs(u.query)["id"][0],"export":"download","confirm":"t"}
+          key=urllib.parse.parse_qs(u.query).get("resourcekey")
+          if key: query["resourcekey"]=key[0]
+          req=urllib.request.Request("https://drive.usercontent.google.com/download?"+urllib.parse.urlencode(query),headers={"User-Agent":"Mozilla/5.0"})
+          with urllib.request.urlopen(req,timeout=120) as res, open("_preview/source.mp4","wb") as out:
+              assert res.headers.get("Content-Type","").startswith("video/")
+              shutil.copyfileobj(res,out)
+          assert Path("_preview/source.mp4").stat().st_size > 1000000
+          PY
+          mkdir -p program/test-media
+          ffmpeg -hide_banner -loglevel error -y -i _preview/source.mp4 -vf "scale=720:1280:force_original_aspect_ratio=decrease:force_divisible_by=2" -c:v libx264 -pix_fmt yuv420p -preset fast -crf 22 -maxrate 4M -bufsize 8M -c:a aac -b:a 128k -movflags +faststart program/test-media/064v.mp4
+          test "$(stat -c%s program/test-media/064v.mp4)" -lt 95000000
+          ffprobe -v error -show_entries stream=codec_name,pix_fmt,width,height -of compact program/test-media/064v.mp4
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path("program/config/test-links-064v.json")
+          data=json.loads(p.read_text())
+          data["videos"]["64v"]="https://3d-ev-modeli.github.io/3d-evler/program/test-media/064v.mp4"
+          p.write_text(json.dumps(data,ensure_ascii=False))
+          v=Path("program/test-viewer-064v-3kat.html")
+          s=v.read_text()
+          s=s.replace('Portföy videosu</span><button id="videoClose"','Portföy videosu · Test 3</span><button id="videoClose"')
+          v.write_text(s)
+          PY
       - name: Prepare site and isolated preview
         run: |
           python - <<'PY'
@@ -68,14 +102,14 @@ jobs:
           html = Path("program/share/ref-064v.html").read_text(encoding="utf-8")
           html = html.replace(base + "ref-064v.html?v=f3636f5f11c8", base + name + ".html")
           html = html.replace("https://3d-ev-modeli.github.io/3d-evler/program/covers/064v-f3636f5f11c8.jpg", base + name + ".jpg")
-          html = html.replace("../?villa=ref-064v", "../test-viewer-064v-3kat.html?villa=ref-064v")
+          html = html.replace("../?villa=ref-064v", "../test-viewer-064v-3kat.html?villa=ref-064v&amp;player=3")
           (target / (name + ".html")).write_text(html, encoding="utf-8")
           PY
       - name: Preserve only the two preview files in main
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -- program/share/test-064v-3kat.html program/share/test-064v-3kat.jpg program/test-viewer-064v-3kat.html program/config/test-links-064v.json
+          git add -- program/share/test-064v-3kat.html program/share/test-064v-3kat.jpg program/test-viewer-064v-3kat.html program/config/test-links-064v.json program/test-media/064v.mp4
           if ! git diff --cached --quiet; then
             git commit -m 'Persist isolated 064v WhatsApp preview'
             git pull --rebase origin main
@@ -107,25 +141,4 @@ jobs:
                           print(agent, name, response.status, response.headers.get("Content-Type"), len(data), "JPEG" if data[:2]==b"\xff\xd8" else "OG image present" if b'property="og:image"' in data else "other")
                   except Exception as exc:
                       print(agent, name, type(exc).__name__, str(exc))
-          PY
-      - name: Probe direct video streaming
-        run: |
-          python - <<'PY'
-          import json, urllib.request, urllib.parse, re
-          from pathlib import Path
-          url=json.loads(Path("program/config/test-links-064v.json").read_text())["videos"]["64v"]
-          u=urllib.parse.urlsplit(url)
-          id=(re.search(r"/file/d/([\w-]+)",u.path) or [None,None])[1] or urllib.parse.parse_qs(u.query).get("id",[""])[0]
-          assert id and re.fullmatch(r"[\w-]+",id)
-          for host,path in [("drive.google.com","/uc"),("drive.usercontent.google.com","/download")]:
-              try:
-                  query={"id":id,"export":"download"}
-                  if host.startswith("drive.usercontent"): query["confirm"]="t"
-                  key=urllib.parse.parse_qs(u.query).get("resourcekey")
-                  if key: query["resourcekey"]=key[0]
-                  req=urllib.request.Request("https://"+host+path+"?"+urllib.parse.urlencode(query),headers={"Range":"bytes=0-1023","User-Agent":"Mozilla/5.0"})
-                  with urllib.request.urlopen(req,timeout=25) as res:
-                      print(host,res.status,res.headers.get("Content-Type"),res.headers.get("Content-Range"),"MP4 signature",b"ftyp" in res.read(1024))
-              except Exception as e:
-                  print(host,type(e).__name__,getattr(e,"code",""))
           PY
