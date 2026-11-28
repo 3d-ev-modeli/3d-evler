@@ -335,6 +335,17 @@ button, .open {
 [hidden] {
   display: none !important;
 }
+
+#portfolioActions { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; padding:4px 12px; background:#fff; }
+#portfolioActions > [hidden] { display:flex !important; visibility:hidden; pointer-events:none; }
+#portfolioActions > a, #portfolioActions > button { box-sizing:border-box; justify-content:center; min-height:36px; margin:0; padding:6px 4px; font:600 13px "Segoe UI",Arial,sans-serif; }
+#locationOpenButton { display:inline-flex; align-items:center; gap:6px; border:0; border-radius:7px; color:#fff; background:#1464c0; }
+#locationOpenButton svg { width:16px; height:16px; fill:currentColor; }
+#portfolioPrice { position:absolute; left:18px; top:19px; z-index:1000; color:#d51011; font:bold clamp(18px,4vw,24px) "Segoe UI",Arial,sans-serif; pointer-events:none; max-width:calc(100% - 110px); }
+#locationDialog { border:0; padding:0; width:100%; max-width:100%; height:100dvh; max-height:100dvh; background:#fff; }
+#locationDialog::backdrop { background:#000b; }
+#locationClose { position:absolute; top:8px; right:12px; z-index:1; }
+#locationFrame { border:0; width:100%; height:calc(100% - 50px); margin-top:50px; }
 </style>
 
 <script type="importmap">
@@ -355,8 +366,6 @@ button, .open {
   <div id="propertyTitle" hidden></div>
   <div id="floors" hidden></div>
   <div id="tourActions">
-    <a id="detailOpenButton" target="_blank" rel="noopener noreferrer" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h18v3H3zm0 6h18v3H3zm0 6h14v3H3z"/></svg>Detay</a>
-    <button id="videoOpenButton" type="button" hidden aria-haspopup="dialog"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3l15 9-15 9z"/></svg>Video</button>
     <div id="lightingComparison" hidden role="group" aria-label="Aydınlatma karşılaştırması">
       <span>Işık:</span>
       <button type="button" data-lighting="current" aria-pressed="true">Mevcut</button>
@@ -370,6 +379,7 @@ button, .open {
   <div id="status" hidden></div>
 
   <div id="viewer">
+    <div id="portfolioPrice" hidden></div>
     <button id="tourClose" type="button" aria-label="3D sunumu kapat">× Kapat</button>
     <div id="panoOverlay" hidden>
       <div id="panoTitle"></div>
@@ -379,6 +389,11 @@ button, .open {
     </div>
   </div>
 
+  <div id="portfolioActions">
+    <a id="detailOpenButton" target="_blank" rel="noopener noreferrer" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h18v3H3zm0 6h18v3H3zm0 6h14v3H3z"/></svg>Bilgiler</a>
+    <button id="locationOpenButton" type="button" hidden aria-haspopup="dialog"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a8 8 0 0 0-8 8c0 5.5 8 12 8 12s8-6.5 8-12a8 8 0 0 0-8-8zm0 11a3 3 0 1 1 0-6 3 3 0 0 1 0 6z"/></svg>Konum</button>
+    <button id="videoOpenButton" type="button" hidden aria-haspopup="dialog"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3l15 9-15 9z"/></svg>Video</button>
+  </div>
   <div id="footer">
     <div class="footer-line"></div>
 
@@ -403,6 +418,8 @@ button, .open {
   <div id="videoContent"></div>
   <a id="videoSourceLink" target="_blank" rel="noopener noreferrer">Videoyu yeni sekmede aç</a>
 </dialog>
+
+<dialog id="locationDialog" aria-label="Portföy konumu"><button id="locationClose" type="button">× Kapat</button><iframe id="locationFrame" title="Portföy konum fotoğrafı" referrerpolicy="no-referrer"></iframe></dialog>
 
 <audio id="backgroundMusic" loop playsinline preload="auto"></audio>
 
@@ -441,6 +458,8 @@ async function loadAppConfig() {
       const links = await videoResponse.json();
       videoLinks = links.videos || {};
       detailLinks = links.details || {};
+      locationLinks = links.locations || {};
+      prices = links.prices || {};
     }
   } catch (error) {
     console.warn("Portföy ayarları yüklenemedi; varsayılan ayarlar kullanılacak.", error);
@@ -536,6 +555,31 @@ const clock = new THREE.Clock();
 
 let videoLinks = {};
 let detailLinks = {};
+let locationLinks = {}, prices = {};
+const locationButton = document.getElementById("locationOpenButton");
+const locationDialog = document.getElementById("locationDialog");
+const locationFrame = document.getElementById("locationFrame");
+let activeLocation = null;
+function locationTarget(value) {
+  try { const url = new URL(value); if (url.protocol !== "https:" || url.hostname !== "drive.google.com" || url.username || url.password) return null;
+    const id = url.pathname.match(/^\/file\/d\/([\w-]+)(?:\/|$)/)?.[1] || url.searchParams.get("id");
+    if (!id || !/^[\w-]+$/.test(id)) return null;
+    const preview = new URL("https://drive.google.com/file/d/" + id + "/preview");
+    if (url.searchParams.has("resourcekey")) preview.searchParams.set("resourcekey",url.searchParams.get("resourcekey"));
+    return preview.href;
+  } catch { return null; }
+}
+function displayPrice(value) {
+  let raw = String(value ?? "").trim();
+  if (!raw) return "";
+  raw = raw.replace(/₺|\bTL\b/gi,"").trim();
+  let n = Number(raw);
+  if (/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(raw)) n = Number(raw.replace(/\./g,"").replace(",","."));
+  return Number.isFinite(n) && n > 0 ? "₺" + n.toLocaleString("tr-TR",{maximumFractionDigits:2}) : "";
+}
+locationButton.addEventListener("click",()=>{ if (!activeLocation || tourClosed) return; closePanorama(); ++musicRequest; backgroundMusic.pause(); musicNeedsGesture=!!backgroundMusic.dataset.url; locationFrame.src=activeLocation; locationDialog.showModal(); });
+document.getElementById("locationClose").addEventListener("click",()=>locationDialog.close());
+locationDialog.addEventListener("close",()=>locationFrame.removeAttribute("src"));
 const detailButton = document.getElementById("detailOpenButton");
 const videoButton = document.getElementById("videoOpenButton");
 const videoDialog = document.getElementById("videoDialog");
@@ -576,6 +620,11 @@ function applyVideo(folder, name) {
   closeVideo(false);
   const ref = canonicalVideoRef(getPortfolioConfig(folder, name).ref || folder);
   activeVideoUrl = videoLinks[ref] || "";
+  activeLocation = locationTarget(locationLinks[ref]);
+  locationButton.hidden = !activeLocation;
+  const price = document.getElementById("portfolioPrice");
+  price.textContent = displayPrice(prices[ref]);
+  price.hidden = !price.textContent;
   videoButton.hidden = !videoTarget(activeVideoUrl);
   const detail = videoTarget(detailLinks[ref]);
   detailButton.hidden = !detail;
@@ -885,7 +934,7 @@ function applyMusic(folder, name) {
   musicNeedsGesture = true;
 }
 function resumeMusicOnGesture(event) {
-  if (tourClosed || videoIsOpen || event.target.closest?.("#tourClose, #videoOpenButton, #detailOpenButton, #lightingComparison")) return;
+  if (tourClosed || videoIsOpen || locationDialog.open || event.target.closest?.("#tourClose, #portfolioActions, #lightingComparison")) return;
   if (!musicNeedsGesture || !backgroundMusic.dataset.url) return;
   musicNeedsGesture = false;
   void startMusic();
