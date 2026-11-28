@@ -104,8 +104,12 @@ def extract_video_links(path):
                     try:
                         url = safe_video_url(raw_url)
                     except ValueError:
-                        field = "Video" if output is result else "Detay" if output is detail_result else "Konum"
-                        raise ValueError(f"{key}: {field} sütununda geçersiz HTTPS bağlantısı ({address}).") from None
+                        if output is location_result:
+                            # A location note or malformed URL is not a usable photo link.
+                            url = ""
+                        else:
+                            field = "Video" if output is result else "Detay"
+                            raise ValueError(f"{key}: {field} sütununda geçersiz HTTPS bağlantısı ({address}).") from None
                     if key in output and output[key] != url:
                         raise ValueError("Aynı portföy için farklı bağlantı kayıtları var: " + key)
                     output[key] = url
