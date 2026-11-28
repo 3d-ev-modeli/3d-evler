@@ -1,6 +1,7 @@
 """Extract only typed portfolio references, Video and Detay URLs from XLSX."""
 from __future__ import annotations
 import argparse
+from decimal import Decimal, InvalidOperation
 import io
 import json
 from pathlib import Path, PurePosixPath
@@ -110,7 +111,23 @@ def published_links(payload, config):
     return {"version": 1, **{field: {key: payload.get(field, {}).get(key, "")
             for key in sorted(keys - {None})} for field in ("videos", "details", "locations", "prices")}}
 
-def sync_drive_catalog(drive, root, pending):
+def format_price(value):
+    raw = re.sub(r'(?i)\bTL\b|₺', '', str(value or '')).strip()
+    if re.fullmatch(r'\d{1,3}(?:\.\d{3})+(?:,\d+)?', raw):
+        raw = raw.replace('.', '').replace(',', '.')
+    elif re.fullmatch(r'\d+,\d{1,2}', raw):
+        raw = raw.replace(',', '.')
+    try:
+        n = Decimal(raw)
+        if not n.is_finite() or n <= 0 or n > Decimal('999999999999999'):
+            return ''
+        formatted = format(n, ',.2f').rstrip('0').rstrip('.')
+        return '₺' + formatted.translate(str.maketrans(',.', '.,'))
+    except InvalidOperation:
+        return ''
+
+
+def read_drive_catalog(drive, root):
     source_path = Path(root) / "program/config/catalog-source.json"
     if not source_path.exists():
         return False
@@ -124,7 +141,14 @@ def sync_drive_catalog(drive, root, pending):
     item = drive.metadata(file_id)
     if not item["name"].lower().endswith(".xlsx"):
         raise ValueError("Video/Detay kaynağı portfoyler.xlsx biçiminde olmalı.")
-    catalog = extract_video_links(io.BytesIO(drive.download(item, 20 * 1024 * 1024)))
+    return extract_video_links(io.BytesIO(drive.download(item, 20 * 1024 * 1024)))
+
+
+def sync_drive_catalog(drive, root, pending, catalog=None):
+    if catalog is None:
+        catalog = read_drive_catalog(drive, root)
+    if not catalog:
+        return False
     config = json.loads(pending["program/config/portfolios.json"])
     payload = published_links(catalog, config)
     pending["program/config/video-links.json"] = (json.dumps(payload, ensure_ascii=True, indent=2) + "\n").encode("utf-8")
