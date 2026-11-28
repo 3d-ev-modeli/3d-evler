@@ -96,9 +96,14 @@ jobs:
         uses: actions/upload-pages-artifact@v4
         with:
           path: _site
+          name: pages-import-${{ github.run_id }}-${{ github.run_attempt }}
+      - name: Yayın paketi kayıtlarının hazırlanmasını bekle
+        run: sleep 15
       - name: Siteyi yayınla
         id: deployment
         uses: actions/deploy-pages@v4
+        with:
+          artifact_name: pages-import-${{ github.run_id }}-${{ github.run_attempt }}
       - name: Kullanım bağlantılarını göster
         run: python program/tools/import_summary.py
       - name: Proje yedeğini hazırla
