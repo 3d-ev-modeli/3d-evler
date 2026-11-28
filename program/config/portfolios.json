@@ -172,6 +172,26 @@
               "moveAmount": 0.005226531158987545
             }
           ]
+        },
+        "zemin-iyilestirilmis.glb": {
+          "driveModelId": "1M3C-7KTPRgLsaXdWIYVNta_UKj-mo89g",
+          "panoramaPhotos": [
+            {
+              "id": "1qFnbqZ-hwadOE57ymivXnrcfv9UCPu21",
+              "sourceName": "Geniş Panoramik Antre ve Koridor_upscale_upscale.jpg",
+              "title": "Geniş Panoramik Antre ve Koridor_upscale_upscale",
+              "url": "./360/999v/zemin-iyilestirilmis/1qFnbqZ-hwadOE57ymivXnrcfv9UCPu21-ffede8e4e424.jpg",
+              "thumbnailUrl": "./360/999v/zemin-iyilestirilmis/1qFnbqZ-hwadOE57ymivXnrcfv9UCPu21-ffede8e4e424.jpg"
+            },
+            {
+              "id": "1rztoIUHX8fU5vj0ABcU851AenQ4LGUIR",
+              "sourceName": "2Ruglu Aydınlık Mutfak Panoraması_upscale.jpg",
+              "title": "2Ruglu Aydınlık Mutfak Panoraması_upscale",
+              "url": "./360/999v/zemin-iyilestirilmis/1rztoIUHX8fU5vj0ABcU851AenQ4LGUIR-5fbf10dc5edf.jpg",
+              "thumbnailUrl": "./360/999v/zemin-iyilestirilmis/1rztoIUHX8fU5vj0ABcU851AenQ4LGUIR-5fbf10dc5edf.jpg"
+            }
+          ],
+          "panoramas": []
         }
       },
       "coverImage": "./covers/999v-6a13f02b8bbc.jpg",
