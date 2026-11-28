@@ -9,9 +9,9 @@ spec = importlib.util.spec_from_file_location("video_links", Path(__file__).pare
 module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
 extract_video_links, typed_ref, published_links, sync_drive_catalog = module.extract_video_links, module.typed_ref, module.published_links, module.sync_drive_catalog
 
-HEADER = '<row r="1"><c r="A1" t="inlineStr"><is><t>{ref}</t></is></c><c r="B1" t="inlineStr"><is><t>Video</t></is></c><c r="C1" t="inlineStr"><is><t>Detay</t></is></c></row>'
-def row(number, ref, value="", formula="", detail=""):
-    return f'<row r="{number}"><c r="A{number}" t="inlineStr"><is><t>{ref}</t></is></c><c r="B{number}" t="inlineStr"><is><t>{value}</t></is>{formula}</c><c r="C{number}" t="inlineStr"><is><t>{detail}</t></is></c></row>'
+HEADER = '<row r="1"><c r="A1" t="inlineStr"><is><t>{ref}</t></is></c><c r="B1" t="inlineStr"><is><t>Video</t></is></c><c r="C1" t="inlineStr"><is><t>Detay</t></is></c><c r="D1" t="inlineStr"><is><t>Konum</t></is></c><c r="E1" t="inlineStr"><is><t>Fiyat</t></is></c></row>'
+def row(number, ref, value="", formula="", detail="", location="", price=""):
+    return f'<row r="{number}"><c r="A{number}" t="inlineStr"><is><t>{ref}</t></is></c><c r="B{number}" t="inlineStr"><is><t>{value}</t></is>{formula}</c><c r="C{number}" t="inlineStr"><is><t>{detail}</t></is></c><c r="D{number}" t="inlineStr"><is><t>{location}</t></is></c><c r="E{number}" t="inlineStr"><is><t>{price}</t></is></c></row>'
 
 class VideoLinksTests(unittest.TestCase):
     def workbook(self, villa, daire, links="", rels=""):
@@ -37,6 +37,19 @@ class VideoLinksTests(unittest.TestCase):
     def test_details_follow_same_type_and_number(self):
         p=self.workbook(row(2,'villa064',detail='https://example.com/v-details'),row(2,'64',detail='https://example.com/d-details'))
         self.assertEqual(extract_video_links(p)['details'],{'64v':'https://example.com/v-details','64d':'https://example.com/d-details'})
+
+    def test_prices_and_locations_separate_villa_and_apartment(self):
+        p=self.workbook(row(2,'villa064',location='https://drive.google.com/file/d/testvilla/view',price='13750000'),row(2,'64',price='4000000'))
+        result=extract_video_links(p)
+        self.assertEqual(result['locations'],{'64v':'https://drive.google.com/file/d/testvilla/view','64d':''})
+        self.assertEqual(result['prices'],{'64v':'13750000','64d':'4000000'})
+        self.assertEqual(module.format_price('13750000'),'₺13.750.000')
+        self.assertEqual(module.format_price('13.750.000 TL'),'₺13.750.000')
+        self.assertEqual(module.format_price(''),'')
+        self.assertEqual(module.format_price('NaN'),'')
+        published=published_links(result,{'villas':{'ref-064v':{'ref':'064v'}}})
+        self.assertEqual(published['prices'],{'64v':'13750000'})
+        self.assertNotIn('64d',published['locations'])
 
     def test_real_hyperlink_and_formula_target(self):
         p=self.workbook(row(2,'villa64','Oynat'),row(2,'64','Oynat','<f>HYPERLINK("https://example.com/d.mp4","Oynat")</f>'),'<hyperlinks><hyperlink ref="B2" r:id="link"/></hyperlinks>','<Relationships><Relationship Id="link" Target="https://example.com/v.mp4"/></Relationships>')
