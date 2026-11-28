@@ -12,7 +12,7 @@ jobs:
   preview:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       actions: read
       pages: write
       id-token: write
@@ -21,6 +21,9 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
       - uses: actions/download-artifact@v4
         with:
           name: preview-064v
@@ -29,11 +32,10 @@ jobs:
           path: _preview
       - name: Prepare site and isolated preview
         run: |
-          python program/tools/prepare_site.py
           python - <<'PY'
           from pathlib import Path
           import shutil
-          target = Path("_site/program/share")
+          target = Path("program/share")
           target.mkdir(parents=True, exist_ok=True)
           name = "test-064v-tl"
           shutil.copyfile("_preview/preview-064v.jpg", target / (name + ".jpg"))
@@ -43,6 +45,17 @@ jobs:
           html = html.replace("https://3d-ev-modeli.github.io/3d-evler/program/covers/064v-f3636f5f11c8.jpg", base + name + ".jpg")
           (target / (name + ".html")).write_text(html, encoding="utf-8")
           PY
+      - name: Preserve only the two preview files in main
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- program/share/test-064v-tl.html program/share/test-064v-tl.jpg
+          if ! git diff --cached --quiet; then
+            git commit -m 'Persist isolated 064v WhatsApp preview'
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi
+          python program/tools/prepare_site.py
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
         with:
