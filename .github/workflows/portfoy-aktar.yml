@@ -59,6 +59,7 @@ jobs:
       - name: Kurulumu kontrol et
         env:
           GOOGLE_DRIVE_API_KEY: ${{ secrets.GOOGLE_DRIVE_API_KEY }}
+          PORTFOLIO_DRIVE_FILE_ID: ${{ secrets.PORTFOLIO_DRIVE_FILE_ID }}
         run: |
           if [ -z "$GOOGLE_DRIVE_API_KEY" ]; then
             echo '::error::GOOGLE_DRIVE_API_KEY eksik. program/DRIVE_KULLANIM.md içindeki bir defalık kurulumu tamamlayın.'
@@ -70,6 +71,7 @@ jobs:
       - name: Drive portföyünü doğrula ve al
         env:
           GOOGLE_DRIVE_API_KEY: ${{ secrets.GOOGLE_DRIVE_API_KEY }}
+          PORTFOLIO_DRIVE_FILE_ID: ${{ secrets.PORTFOLIO_DRIVE_FILE_ID }}
           DRIVE_FOLDER: ${{ inputs.drive_folder }}
           PORTFOLIO_REF: ${{ inputs.reference }}
           PORTFOLIO_LOCATION: ${{ inputs.location }}
