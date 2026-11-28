@@ -189,6 +189,7 @@ def cover(image, ref, title, font_path, price=""):
     draw.text((logo_right - logo_width / 2, logo_top + logo_height / 2), "360°",
               font=logo_font, anchor="mm", fill="white")
     if price:
+        price = price.removeprefix("₺").strip() + " TL" if price.startswith("₺") else price
         price_font_path = os.environ.get("PORTFOLIO_PRICE_FONT")
         if not price_font_path or not Path(price_font_path).is_file():
             raise ImportError_("Poppins ExtraBold fiyat fontu bulunamadı.")
@@ -197,7 +198,7 @@ def cover(image, ref, title, font_path, price=""):
         while draw.textlength(price, font=price_font) > width - 2*x and price_size > 16:
             price_size -= 1
             price_font = ImageFont.truetype(price_font_path, price_size)
-        draw.text((x, height - x), price, font=price_font, anchor="ls", fill="#d51011", stroke_width=max(1, round(scale)), stroke_fill="#ffffff")
+        draw.text((x, height - x), price, font=price_font, anchor="ls", fill="#d51011", stroke_width=max(2, round(2 * scale)), stroke_fill="#ffffff")
     draw.text((x, height + band / 2), title, font=title_font, anchor="lm", fill="#292929")
     output = io.BytesIO()
     for quality in (82, 74, 65, 55):
