@@ -126,8 +126,8 @@
           "panoramas": []
         }
       },
-      "coverImage": "./covers/064v-c702269dc298.jpg",
-      "sharePath": "./share/ref-064v.html?v=c702269dc298",
+      "coverImage": "./covers/064v-45bebf478c2e.jpg",
+      "sharePath": "./share/ref-064v-45bebf478c2e.html",
       "musicUrl": "./audio/064v-c53e49b73047.mp3",
       "legacyFolders": [
         "ref-057",
@@ -315,8 +315,11 @@
           "stairArrows": []
         }
       },
-      "coverImage": "./covers/0998d-cce758899be1.jpg",
-      "sharePath": "./share/ref-0998d.html?v=cce758899be1"
+      "coverImage": "./covers/0998d-9031aa87bd95.jpg",
+      "sharePath": "./share/ref-0998d-9031aa87bd95.html",
+      "activeFloors": [
+        "zemin-iyilestirilmis.glb"
+      ]
     }
   }
 }

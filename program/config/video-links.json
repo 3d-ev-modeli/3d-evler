@@ -2,12 +2,30 @@
   "version": 1,
   "videos": {
     "64v": "https://drive.google.com/file/d/1tYVyY_6U0Gfl1WeA8URi1F3z0PHR-NCD/view?usp=sharing",
+    "998d": "https://drive.google.com/file/d/1ZKjffz-ifkh1w9TnbQZefz53JNjMRysg/view?usp=sharing",
     "999d": "",
     "999v": ""
   },
   "details": {
-    "64v": "",
+    "64v": "https://docs.google.com/document/d/1WWefJboRM6tkrKWuyvLwcX1EUDfahv3d2TRPgqemZKc/edit?usp=sharing",
+    "998d": "https://docs.google.com/document/d/1BDyPx7kejGq9Q8vzU0YdZOFPTSLm0a283qTw1ciTldQ/edit?usp=sharing",
     "999d": "",
     "999v": ""
+  },
+  "locations": {
+    "64v": "https://drive.google.com/file/d/1DOl0-69EpRGbz3fef_YT-igew7rTsRKX/view?usp=sharing",
+    "998d": "https://drive.google.com/file/d/1R6wNK92fQAlDPwhh3wGGwJ868kRavcPL/view?usp=sharing",
+    "999d": "",
+    "999v": ""
+  },
+  "prices": {
+    "64v": "25000000",
+    "998d": "5000000",
+    "999d": "",
+    "999v": ""
+  },
+  "webVideos": {
+    "64v": "./media/64v-e4d864dedf8ce735.mp4",
+    "998d": "./media/998d-070581f79789256e.mp4"
   }
 }
