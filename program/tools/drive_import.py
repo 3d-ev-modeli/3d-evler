@@ -151,7 +151,7 @@ def vector(value, label):
     return value
 
 
-def cover(image, ref, title, font_path):
+def cover(image, ref, title, font_path, price=""):
     # Fit without cropping: preserve the villa, garden and foreground.
     image.thumbnail((1200, 1200), Image.Resampling.LANCZOS)
     width, height = image.size
@@ -176,18 +176,35 @@ def cover(image, ref, title, font_path):
     tag_font = badge_font
     tag_width = draw.textlength("3D", font=tag_font) + 38 * scale
     tag_height = badge_height
-    tag_x = width - x - tag_width
-    draw.rounded_rectangle((tag_x, y, width - x, y + tag_height), radius=9, fill="#ff4f1f")
-    draw.text((tag_x + tag_width / 2, y + tag_height / 2), "3D", font=tag_font, anchor="mm", fill="white")
-    logo_font = ImageFont.truetype(caption_font_path, max(18, round(28 * scale)))
-    logo_width = max(tag_width, draw.textlength("360°", font=logo_font) + 24 * scale)
-    logo_height = max(36, round(54 * scale))
-    logo_right = width - x
+    logo_font = ImageFont.truetype(caption_font_path, max(20, round(31 * scale)))
+    logo_width = max(round(tag_width * 1.10), draw.textlength("360°", font=logo_font) + 26.4 * scale)
+    badge_center = width - x - max(tag_width, logo_width) / 2
+    tag_x = badge_center - tag_width / 2
+    draw.rounded_rectangle((tag_x, y, tag_x + tag_width, y + tag_height), radius=9, fill="#ff4f1f")
+    draw.text((tag_x + tag_width / 2, y + tag_height / 2), "3D", font=tag_font, anchor="mm", fill="white", stroke_width=max(1, round(scale)), stroke_fill="white")
+    logo_height = max(40, round(59.4 * scale))
+    logo_right = badge_center + logo_width / 2
     logo_top = y + tag_height + 12 * scale
     draw.rounded_rectangle((logo_right - logo_width, logo_top, logo_right, logo_top + logo_height),
                            radius=round(logo_height / 2), fill="#078fa9", outline="white", width=max(1, round(2 * scale)))
     draw.text((logo_right - logo_width / 2, logo_top + logo_height / 2), "360°",
               font=logo_font, anchor="mm", fill="white")
+    if price:
+        price = price.removeprefix("₺").strip() + " TL" if price.startswith("₺") else price
+        price_font_path = os.environ.get("PORTFOLIO_PRICE_FONT")
+        if not price_font_path or not Path(price_font_path).is_file():
+            raise ImportError_("Poppins ExtraBold fiyat fontu bulunamadı.")
+        price_size = max(25, round(68 * scale))
+        price_font = ImageFont.truetype(price_font_path, price_size)
+        while draw.textlength(price, font=price_font) > width - 2*x and price_size > 16:
+            price_size -= 1
+            price_font = ImageFont.truetype(price_font_path, price_size)
+        from PIL import ImageFilter
+        shadow = Image.new("RGBA", result.size)
+        ImageDraw.Draw(shadow).text((x + max(2, round(3*scale)), height - x + max(2, round(3*scale))), price, font=price_font, anchor="ls", fill=(0,0,0,240), stroke_width=max(2,round(3*scale)), stroke_fill=(0,0,0,220))
+        result.paste(shadow.filter(ImageFilter.GaussianBlur(max(1,round(2*scale)))), (0,0), shadow.filter(ImageFilter.GaussianBlur(max(1,round(2*scale)))).getchannel("A"))
+        draw = ImageDraw.Draw(result)
+        draw.text((x, height - x), price, font=price_font, anchor="ls", fill="#ffffff")
     draw.text((x, height + band / 2), title, font=title_font, anchor="lm", fill="#292929")
     output = io.BytesIO()
     for quality in (82, 74, 65, 55):
@@ -201,7 +218,7 @@ def cover(image, ref, title, font_path):
 
 def share_page(base_url, ref, title, image_url, dimensions, revision):
     esc = lambda value: html.escape(str(value), quote=True)
-    share_url = f"{base_url}/program/share/ref-{ref}.html?v={revision}"
+    share_url = f"{base_url}/program/share/ref-{ref}-{revision}.html"
     description = "3D ve 360° interaktif gayrimenkul sunumu"
     return f'''<!doctype html>
 <html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -219,7 +236,7 @@ def share_page(base_url, ref, title, image_url, dimensions, revision):
 '''
 
 
-def prepare(drive, folder, config, ref="", location="", details="", base_url="", font_path=""):
+def prepare(drive, folder, config, ref="", location="", details="", base_url="", font_path="", prices=None):
     """Return an in-memory plan; callers write nothing until every file validates."""
     fid, key = folder_id(folder)
     if hasattr(drive, "resource_keys"):
@@ -276,17 +293,25 @@ def prepare(drive, folder, config, ref="", location="", details="", base_url="",
         model_names[item["id"]] = name
         keys[floor_key(name)] = name
         floors.setdefault(name, {})["driveModelId"] = item["id"]
+    # The Drive folder is authoritative for active floors. Keep older GLB
+    # files in Git for recovery, but do not expose them as selectable floors.
+    record["activeFloors"] = list(model_names.values())
+    # Preserve the previous floor metadata for marker recovery and legacy
+    # exports; activeFloors, not the archived metadata, controls selection.
     cover_item = choose(children, lambda f: normalize(Path(f["name"]).stem) in ("kapak", "cover") and Path(f["name"]).suffix.lower() in IMAGE_EXT, "kapak fotoğrafı")
     if not cover_item:
         cover_item = choose(children, lambda f: Path(f["name"]).suffix.lower() in IMAGE_EXT, "kapak fotoğrafı")
     if cover_item:
-        cover_data, dimensions = cover(image_bytes(drive.download(cover_item, 30 * 1024 * 1024)), ref, display, font_path)
+        from video_links import typed_ref, format_price
+        price = format_price((prices or {}).get(typed_ref(ref, ref[-1]), ""))
+        cover_data, dimensions = cover(image_bytes(drive.download(cover_item, 30 * 1024 * 1024)), ref, display, font_path, price)
         digest = hashlib.sha256(cover_data).hexdigest()[:12]
         image_path = f"covers/{ref}-{digest}.jpg"
         pending["program/" + image_path] = cover_data
         record["coverImage"] = "./" + image_path
-        record["sharePath"] = f"./share/ref-{ref}.html?v={digest}"
+        record["sharePath"] = f"./share/ref-{ref}-{digest}.html"
         pending[f"program/share/ref-{ref}.html"] = share_page(base_url, ref, display, base_url + "/program/" + image_path, dimensions, digest).encode()
+        pending[f"program/share/ref-{ref}-{digest}.html"] = pending[f"program/share/ref-{ref}.html"]
         for alias in record.get("legacyFolders", []):
             if re.fullmatch(r"ref-\d{1,10}[vd]?", alias):
                 pending[f"program/share/{alias}.html"] = pending[f"program/share/ref-{ref}.html"]
@@ -411,6 +436,46 @@ def prepare(drive, folder, config, ref="", location="", details="", base_url="",
     return pending, summary
 
 
+def refresh_other_covers(drive, root, pending, catalog, imported_ref, base_url, font_path):
+    """Refresh changed prices on existing Drive-backed portfolios without reimporting models."""
+    from video_links import typed_ref, format_price
+    root = Path(root)
+    config = json.loads(pending["program/config/portfolios.json"])
+    previous_path = root / "program/config/video-links.json"
+    previous = json.loads(previous_path.read_text(encoding="utf-8")).get("prices", {}) if previous_path.exists() else {}
+    prices = catalog.get("prices", {})
+    for record in config.get("villas", {}).values():
+        ref = str(record.get("ref", ""))
+        if ref == imported_ref or not re.fullmatch(r"\d+[vd]", ref) or not record.get("driveFolderId"):
+            continue
+        key = typed_ref(ref, ref[-1])
+        price = format_price(prices.get(key, ""))
+        if price == format_price(previous.get(key, "")):
+            continue
+        children = drive.children(record["driveFolderId"])
+        item = choose(children, lambda f: normalize(Path(f["name"]).stem) in ("kapak", "cover") and Path(f["name"]).suffix.lower() in IMAGE_EXT, "kapak fotoğrafı")
+        if not item:
+            item = choose(children, lambda f: Path(f["name"]).suffix.lower() in IMAGE_EXT, "kapak fotoğrafı")
+        if not item:
+            if record.get("coverImage"):
+                raise ImportError_("Fiyatı değişen portföyün kaynak kapağı bulunamadı: " + ref)
+            continue
+        title = record.get("location", "") + (" · " + record["details"] if record.get("details") else "")
+        data, dimensions = cover(image_bytes(drive.download(item, 30 * 1024 * 1024)), ref, title, font_path, price)
+        digest = hashlib.sha256(data).hexdigest()[:12]
+        path = f"covers/{ref}-{digest}.jpg"
+        pending["program/" + path] = data
+        record["coverImage"] = "./" + path
+        record["sharePath"] = f"./share/ref-{ref}-{digest}.html"
+        page = share_page(base_url, ref, title, base_url + "/program/" + path, dimensions, digest).encode()
+        pending[f"program/share/ref-{ref}.html"] = page
+        pending[f"program/share/ref-{ref}-{digest}.html"] = page
+        for alias in record.get("legacyFolders", []):
+            if re.fullmatch(r"ref-\d{1,10}[vd]?", alias):
+                pending[f"program/share/{alias}.html"] = page
+    pending["program/config/portfolios.json"] = (json.dumps(config, ensure_ascii=False, indent=2) + "\n").encode()
+
+
 def apply_plan(root, pending):
     root = Path(root).resolve()
     for relative in pending:
@@ -440,11 +505,17 @@ def main():
     args = parser.parse_args()
     try:
         config = json.loads((Path(args.root) / "program/config/portfolios.json").read_text(encoding="utf-8"))
-        from video_links import sync_drive_catalog
+        from video_links import sync_drive_catalog, read_drive_catalog
         drive = Drive(os.environ.get("GOOGLE_DRIVE_API_KEY", ""))
+        catalog = read_drive_catalog(drive, args.root)
         pending, result = prepare(drive, args.folder, config,
-                                  args.ref, args.location, args.details, args.base_url.rstrip("/"), args.font)
-        result["catalogSynced"] = sync_drive_catalog(drive, args.root, pending)
+                                  args.ref, args.location, args.details, args.base_url.rstrip("/"), args.font, prices=(catalog or {}).get("prices", {}))
+        if catalog:
+            refresh_other_covers(drive, args.root, pending, catalog, result["ref"], args.base_url.rstrip("/"), args.font)
+        result["catalogSynced"] = sync_drive_catalog(drive, args.root, pending, catalog=catalog)
+        if result["catalogSynced"]:
+            from video_links import prepare_web_videos
+            prepare_web_videos(drive, args.root, pending)
         result["changed"] = len(apply_plan(args.root, pending))
         Path("import-result.json").write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
         print(f"Ref {result['ref']}: {result['models']} model, {result['photos360']} adet 360 fotoğraf; {result['unplaced']} fotoğraf konum bekliyor.")

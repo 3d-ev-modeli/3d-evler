@@ -1,8 +1,10 @@
 """Extract only typed portfolio references, Video and Detay URLs from XLSX."""
 from __future__ import annotations
 import argparse
+from decimal import Decimal, InvalidOperation
 import io
 import json
+import os
 from pathlib import Path, PurePosixPath
 import re
 import unicodedata
@@ -33,7 +35,7 @@ def safe_video_url(value):
     return value
 
 def extract_video_links(path):
-    result, detail_result, found_kinds = {}, {}, set()
+    result, detail_result, location_result, price_result, found_kinds = {}, {}, {}, {}, set()
     with zipfile.ZipFile(path) as archive:
         if sum(i.file_size for i in archive.infolist()) > 100 * 1024 * 1024:
             raise ValueError("Excel dosyası çok büyük.")
@@ -75,6 +77,13 @@ def extract_video_links(path):
             header = rows[header_index]
             video_columns = [col for col, c in header.items() if normalized(c[0]) == "video"]
             detail_columns = [col for col, c in header.items() if normalized(c[0]) == "detay"]
+            location_columns = [col for col, c in header.items() if normalized(c[0]) == "konum"]
+            price_columns = [col for col, c in header.items() if normalized(c[0]) in ("fiyat", "satis fiyati", "fiyat tl")]
+            # The second Konum column is the explicit photo-link field.
+            if len(location_columns) == 2:
+                location_columns = location_columns[1:]
+            if len(location_columns) > 1 or len(price_columns) > 1:
+                raise ValueError("Konum veya Fiyat sütunu belirsiz.")
             ref_columns = [col for col, c in header.items() if normalized(c[0]) in ("ref", "no", "numara", "portfoy no", "portfoy", "foto")]
             if len(video_columns) != 1 or len(ref_columns) != 1:
                 raise ValueError("Video veya portföy numarası sütunu belirsiz.")
@@ -84,43 +93,123 @@ def extract_video_links(path):
                 key = typed_ref(row.get(ref_columns[0], ("",))[0], kind)
                 if not key:
                     continue
-                for columns, output in ((video_columns, result), (detail_columns, detail_result)):
+                price = str(row.get(price_columns[0], ("",))[0]).strip() if price_columns else ""
+                if key in price_result and price_result[key] != price:
+                    raise ValueError("Aynı portföy için farklı fiyat kayıtları var: " + key)
+                price_result[key] = price
+                for columns, output in ((video_columns, result), (detail_columns, detail_result), (location_columns, location_result)):
                     value, address, formula = row.get(columns[0], ("", "", "")) if columns else ("", "", "")
                     formula_link = re.match(r'\s*(?:_xlfn\.)?HYPERLINK\s*\(\s*"((?:[^"\n]|"")*)"', formula, re.I)
-                    url = safe_video_url(links.get(address) or (formula_link[1].replace('""', '"') if formula_link else value))
+                    raw_url = links.get(address) or (formula_link[1].replace('""', '"') if formula_link else value)
+                    try:
+                        url = safe_video_url(raw_url)
+                    except ValueError:
+                        if output is location_result:
+                            # A location note or malformed URL is not a usable photo link.
+                            url = ""
+                        else:
+                            field = "Video" if output is result else "Detay"
+                            raise ValueError(f"{key}: {field} sütununda geçersiz HTTPS bağlantısı ({address}).") from None
                     if key in output and output[key] != url:
                         raise ValueError("Aynı portföy için farklı bağlantı kayıtları var: " + key)
                     output[key] = url
     if found_kinds != {"v", "d"}:
         raise ValueError("Villalar ve Daireler sayfalarının ikisi de gerekli.")
-    return {"version": 1, "videos": result, "details": detail_result}
+    return {"version": 1, "videos": result, "details": detail_result, "locations": location_result, "prices": price_result}
 
 def published_links(payload, config):
     keys = {typed_ref(record.get("ref", ""), kind)
             for collection in (config.get("villas", {}), config.get("models", {}))
             for record in collection.values() for kind in ("v", "d")}
     return {"version": 1, **{field: {key: payload.get(field, {}).get(key, "")
-            for key in sorted(keys - {None})} for field in ("videos", "details")}}
+            for key in sorted(keys - {None})} for field in ("videos", "details", "locations", "prices")}}
 
-def sync_drive_catalog(drive, root, pending):
+def format_price(value):
+    raw = re.sub(r'(?i)\bTL\b|₺', '', str(value or '')).strip()
+    if re.fullmatch(r'\d{1,3}(?:\.\d{3})+(?:,\d+)?', raw):
+        raw = raw.replace('.', '').replace(',', '.')
+    elif re.fullmatch(r'\d+,\d{1,2}', raw):
+        raw = raw.replace(',', '.')
+    try:
+        n = Decimal(raw)
+        if not n.is_finite() or n <= 0 or n > Decimal('999999999999999'):
+            return ''
+        formatted = format(n, ',.2f').rstrip('0').rstrip('.')
+        return '₺' + formatted.translate(str.maketrans(',.', '.,'))
+    except InvalidOperation:
+        return ''
+
+
+def read_drive_catalog(drive, root):
     source_path = Path(root) / "program/config/catalog-source.json"
     if not source_path.exists():
-        return False
+        return None
     source = json.loads(source_path.read_text(encoding="utf-8"))
-    file_id = source.get("driveFileId", "")
+    file_id = os.environ.get("PORTFOLIO_DRIVE_FILE_ID", "").strip() or source.get("driveFileId", "")
     if not file_id:
-        return False
+        return None
     if not re.fullmatch(r"[A-Za-z0-9_-]{10,200}", file_id):
         raise ValueError("Excel kaynak dosyasının Drive kimliği geçersiz.")
     drive.resource_keys[file_id] = source.get("resourceKey", "")
     item = drive.metadata(file_id)
     if not item["name"].lower().endswith(".xlsx"):
         raise ValueError("Video/Detay kaynağı portfoyler.xlsx biçiminde olmalı.")
-    catalog = extract_video_links(io.BytesIO(drive.download(item, 20 * 1024 * 1024)))
+    return extract_video_links(io.BytesIO(drive.download(item, 20 * 1024 * 1024)))
+
+
+def sync_drive_catalog(drive, root, pending, catalog=None):
+    if catalog is None:
+        catalog = read_drive_catalog(drive, root)
+    if not catalog:
+        return False
     config = json.loads(pending["program/config/portfolios.json"])
     payload = published_links(catalog, config)
     pending["program/config/video-links.json"] = (json.dumps(payload, ensure_ascii=True, indent=2) + "\n").encode("utf-8")
     return True
+
+def prepare_web_videos(drive, root, pending):
+    """Cache public Drive videos as browser-compatible MP4s; leave original links intact."""
+    import hashlib, subprocess, tempfile
+    from urllib.parse import parse_qs
+    root = Path(root)
+    path = "program/config/video-links.json"
+    payload = json.loads(pending[path])
+    old_path = root / path
+    old = json.loads(old_path.read_text()) if old_path.exists() else {}
+    assets = {}
+    for ref, url in payload["videos"].items():
+        u = urlsplit(url)
+        if u.hostname != "drive.google.com":
+            continue
+        m = re.match(r"/file/d/([\w-]+)", u.path)
+        fid = m[1] if m else parse_qs(u.query).get("id", [""])[0]
+        if not re.fullmatch(r"[\w-]+", fid):
+            continue
+        try:
+            drive.resource_keys[fid] = parse_qs(u.query).get("resourcekey", [""])[0]
+            # Hash actual source bytes so changes to the same Drive file are detected.
+            data = drive.download({"id": fid, "name": "video.mp4"}, 300 * 1024 * 1024)
+            digest = hashlib.sha256(data).hexdigest()[:16]
+            rel = f"media/{ref}-{digest}.mp4"
+            target = root / "program" / rel
+            if not target.is_file():
+                with tempfile.TemporaryDirectory() as tmp:
+                    src = Path(tmp) / "source"
+                    out = Path(tmp) / "video.mp4"
+                    src.write_bytes(data)
+                    subprocess.run(["ffmpeg","-hide_banner","-loglevel","error","-y","-i",str(src),"-vf","scale=720:1280:force_original_aspect_ratio=decrease:force_divisible_by=2","-c:v","libx264","-pix_fmt","yuv420p","-preset","fast","-crf","22","-maxrate","4M","-bufsize","8M","-c:a","aac","-b:a","128k","-movflags","+faststart",str(out)],check=True,timeout=600)
+                    if out.stat().st_size >= 95000000:
+                        raise ValueError("Video boyutu sınırı aşıldı")
+                    pending["program/" + rel] = out.read_bytes()
+            assets[ref] = "./" + rel
+        except Exception as exc:
+            print("UYARI: Video dönüştürülemedi: " + ref + " (" + type(exc).__name__ + ")")
+            # Only reuse an old asset if its source link is unchanged.
+            previous = old.get("webVideos", {}).get(ref, "")
+            if old.get("videos", {}).get(ref) == url and re.fullmatch(r"\./media/[\w-]+\.mp4", previous) and (root / "program" / previous).is_file():
+                assets[ref] = previous
+    payload["webVideos"] = assets
+    pending[path] = (json.dumps(payload, ensure_ascii=True, indent=2) + "\n").encode()
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)

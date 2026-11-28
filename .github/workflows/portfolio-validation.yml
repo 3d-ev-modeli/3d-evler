@@ -1,0 +1,120 @@
+name: Portfolio validation
+on:
+  push:
+    branches: [portfolio-price-location, production-integration-20261128]
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: python -m pip install -r program/tools/requirements.txt
+      - run: python -m unittest discover -s program/tests -v
+      - name: Check viewer and editor JavaScript syntax
+        run: |
+          python - <<'PY'
+          import re, pathlib, subprocess, tempfile
+          for name in ('index.html', 'arrow-editor.html'):
+              html = (pathlib.Path('program') / name).read_text()
+              for code in re.findall(r'<script\b[^>]*type=["\']module["\'][^>]*>(.*?)</script>', html, re.S):
+                  with tempfile.NamedTemporaryFile(suffix='.mjs', mode='w') as f:
+                      f.write(code)
+                      f.flush()
+                      subprocess.run(['node', '--check', f.name], check=True)
+          PY
+      - name: Verify live catalog without publishing data
+        if: github.event_name == 'push' && github.ref == 'refs/heads/production-integration-20261128'
+        env:
+          GOOGLE_DRIVE_API_KEY: ${{ secrets.GOOGLE_DRIVE_API_KEY }}
+          PORTFOLIO_DRIVE_FILE_ID: ${{ secrets.PORTFOLIO_DRIVE_FILE_ID }}
+        run: |
+          PYTHONPATH=program/tools python - <<'PY'
+          import os
+          from drive_import import Drive
+          from video_links import read_drive_catalog
+          assert os.environ.get("PORTFOLIO_DRIVE_FILE_ID"), "Catalog secret missing"
+          catalog = read_drive_catalog(Drive(os.environ.get("GOOGLE_DRIVE_API_KEY", "")), ".")
+          assert catalog, "Catalog unavailable"
+          for field in ("details", "locations", "prices", "videos"):
+              print("064v " + field + ": " + ("present" if catalog.get(field, {}).get("64v") else "empty"))
+          PY
+      - name: Render real 064v cover without deployment
+        if: github.event_name == 'push' && github.ref == 'refs/heads/production-integration-20261128'
+        env:
+          GOOGLE_DRIVE_API_KEY: ${{ secrets.GOOGLE_DRIVE_API_KEY }}
+          PORTFOLIO_DRIVE_FILE_ID: ${{ secrets.PORTFOLIO_DRIVE_FILE_ID }}
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/google/fonts/main/ofl/poppins/Poppins-ExtraBold.ttf -o "$RUNNER_TEMP/Poppins-ExtraBold.ttf"
+          export PORTFOLIO_PRICE_FONT="$RUNNER_TEMP/Poppins-ExtraBold.ttf"
+          PYTHONPATH=program/tools python - <<'PY'
+          import os, json
+          from pathlib import Path
+          from drive_import import Drive, choose, normalize, IMAGE_EXT, cover, image_bytes
+          from video_links import read_drive_catalog, format_price
+          drive = Drive(os.environ["GOOGLE_DRIVE_API_KEY"])
+          catalog = read_drive_catalog(drive, ".")
+          record = json.loads(Path("program/config/portfolios.json").read_text())["villas"]["ref-064v"]
+          price = format_price(catalog["prices"]["64v"])
+          assert price, "064v price missing"
+          children = drive.children(record["driveFolderId"])
+          item = choose(children, lambda f: normalize(Path(f["name"]).stem) in ("kapak","cover") and Path(f["name"]).suffix.lower() in IMAGE_EXT, "cover")
+          if not item:
+              item = choose(children, lambda f: Path(f["name"]).suffix.lower() in IMAGE_EXT, "cover")
+          assert item, "064v cover missing"
+          data, dims = cover(image_bytes(drive.download(item, 30*1024*1024)), "064v", record["location"] + " · " + record["details"], "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", price)
+          Path("preview-064v.jpg").write_bytes(data)
+          print("064v cover rendered:", dims)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: github.event_name == 'push' && github.ref == 'refs/heads/production-integration-20261128'
+        with:
+          name: preview-064v
+          path: preview-064v.jpg
+          retention-days: 1
+      - name: Test automatic price change and cover refresh without publishing
+        if: github.event_name == 'push' && github.ref == 'refs/heads/production-integration-20261128'
+        env:
+          GOOGLE_DRIVE_API_KEY: ${{ secrets.GOOGLE_DRIVE_API_KEY }}
+          PORTFOLIO_DRIVE_FILE_ID: ${{ secrets.PORTFOLIO_DRIVE_FILE_ID }}
+        run: |
+          export PORTFOLIO_PRICE_FONT="$RUNNER_TEMP/Poppins-ExtraBold.ttf"
+          PYTHONPATH=program/tools python - <<'PY'
+          import copy, json, os, tempfile
+          from pathlib import Path
+          from drive_import import Drive, refresh_other_covers
+          from video_links import read_drive_catalog
+          drive = Drive(os.environ["GOOGLE_DRIVE_API_KEY"])
+          catalog = read_drive_catalog(drive, ".")
+          record = json.loads(Path("program/config/portfolios.json").read_text())["villas"]["ref-064v"]
+          config = {"villas": {"ref-064v": record}}
+          with tempfile.TemporaryDirectory() as tmp:
+              root = Path(tmp)
+              previous = root / "program/config/video-links.json"
+              previous.parent.mkdir(parents=True)
+              previous.write_text(json.dumps({"prices": {"64v": 24000000}}))
+              pending = {"program/config/portfolios.json": json.dumps(config).encode()}
+              modified = copy.deepcopy(catalog)
+              modified["prices"]["64v"] = 25000000
+              refresh_other_covers(drive, root, pending, modified, "other", "https://3d-ev-modeli.github.io/3d-evler", "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf")
+              first = json.loads(pending["program/config/portfolios.json"])["villas"]["ref-064v"]
+              first_img = first["coverImage"]
+              assert "program/" + first_img.removeprefix("./") in pending
+              assert b"og:image" in pending["program/share/ref-064v.html"]
+              modified["prices"]["64v"] = 26000000
+              refresh_other_covers(drive, root, pending, modified, "other", "https://3d-ev-modeli.github.io/3d-evler", "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf")
+              second = json.loads(pending["program/config/portfolios.json"])["villas"]["ref-064v"]
+              assert second["coverImage"] != first_img
+              assert second["sharePath"] != first["sharePath"]
+              assert second["coverImage"].removeprefix("./").encode() in pending["program/share/ref-064v.html"]
+              assert second["floors"] == record["floors"]
+              print("PASS: price change regenerates cover and share URL; floors untouched; no live data written.")
+          PY
