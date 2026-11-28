@@ -1,0 +1,2282 @@
+
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>3D Ev Turu</title>
+  <meta property="og:type" content="website">
+<meta property="og:title" content="3D MİMARİ SUNUM">
+<meta property="og:description" content="360° İnteraktif Gayrimenkul Deneyimi">
+<meta property="og:image" content="https://3d-ev-modeli.github.io/3d-evler/program/preview.png">
+<meta property="og:image:type" content="image/png">
+
+<style>
+body {
+  margin: 0;
+  font-family: "Segoe UI", Arial, sans-serif;
+  background: #f5f6f8;
+}
+
+#tour {
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: white;
+  overflow: hidden;
+}
+
+#viewer {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+canvas {
+  display: block;
+  touch-action: none;
+}
+
+#propertyTitle {
+  text-align: center;
+  padding: 18px 24px 8px;
+  font-size: 16px;
+  font-weight: 400;
+  letter-spacing: 0.8px;
+  line-height: 1.15;
+  color: #444444;
+  background: white;
+  text-shadow: none;
+  overflow-wrap: anywhere;
+}
+
+#propertyTitle div:nth-child(2) {
+  font-size: 16px;
+  font-weight: 400;
+  text-transform: uppercase;
+}
+
+#propertyTitle div:nth-child(3) {
+  font-size: 11px;
+  font-weight: 400;
+  color: #888888;
+  letter-spacing: 0.3px;
+  margin-top: 1px;
+}
+
+#propertyTitle .ref {
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.ref {
+  display: inline-block;
+  background: #c51b24;
+  color: #ffffff;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-weight: 600;
+  text-shadow: none;
+  width: fit-content;
+}
+
+#propertyTitle .ref {
+  display: inline-block;
+  margin: 0 auto 5px;
+  white-space: nowrap;
+  width: auto;
+}
+
+#floors {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px;
+  background: white;
+}
+
+#footer {
+  text-align: center;
+  padding: 12px 15px 28px;
+  background: white;
+}
+
+.footer-line {
+  width: 45px;
+  height: 1px;
+  background: #aaaaaa;
+  margin: 0 auto 10px;
+}
+
+.footer-title {
+  font-size: 13px;
+  letter-spacing: 2px;
+  font-weight: 500;
+  color: #444444;
+}
+
+.footer-subtitle {
+  font-size: 11px;
+  color: #888888;
+  margin-top: 4px;
+}
+
+#panel {
+  max-width: 850px;
+  margin: 40px auto;
+  padding: 20px;
+}
+
+.item {
+  background: white;
+  padding: 20px;
+  margin-bottom: 12px;
+  border-radius: 10px;
+  border: 1px solid #ddd;
+}
+
+button, .open {
+  display: inline-block;
+  background: #176b43;
+  color: white;
+  padding: 12px 16px;
+  border: 0;
+  border-radius: 6px;
+  margin: 12px 8px 0 0;
+  cursor: pointer;
+  text-decoration: none;
+  font-size: 14px;
+}
+
+.open {
+  background: #333;
+}
+
+.floor-button {
+  background: #eeeeee;
+  color: #555555;
+  font-size: 12px;
+  font-weight: 400;
+  padding: 7px 12px;
+  border-radius: 6px;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.floor-button.active {
+  background: #444444;
+  color: #ffffff;
+}
+
+.info {
+  color: #777;
+  font-size: 13px;
+  margin-top: 8px;
+}
+
+#status {
+  padding: 15px;
+  text-align: center;
+  color: #555;
+}
+
+#tourActions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  padding: 0 10px 8px;
+  background: #fff;
+}
+
+#panoramaButtons {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.panorama-button {
+  margin: 0;
+  padding: 7px 11px;
+  border-radius: 18px;
+  background: #f1f3f5;
+  color: #42474d;
+  border: 1px solid #e1e4e8;
+  font-size: 12px;
+}
+
+#panoramaButtons { display: none !important; }
+
+#videoOpenButton, #detailOpenButton {
+  display: inline-flex; align-items: center; gap: 6px;
+  margin: 0; padding: 5px 10px; min-height: 30px; border: 0; border-radius: 7px;
+  color: white; font: 600 12px "Segoe UI", Arial, sans-serif; text-decoration: none;
+}
+#videoOpenButton { background: #d51011; }
+#detailOpenButton { background: #086342; }
+#videoOpenButton svg, #detailOpenButton svg { width: 16px; height: 16px; fill: currentColor; }
+#videoOpenButton:focus-visible, #detailOpenButton:focus-visible { outline: 2px solid #078fa9; outline-offset: 3px; }
+#lightingComparison button {
+  margin: 0; padding: 6px 10px; font-size: 11px; border-radius: 16px;
+  background: #f2f4f5; color: #444; border: 1px solid #dce1e4;
+}
+#lightingComparison { display: flex; align-items: center; gap: 5px; font-size: 11px; color: #666; }
+#lightingComparison button[aria-pressed="true"] { background: #444; color: white; }
+#videoDialog { border: 0; border-radius: 12px; padding: 12px; width: min(900px, 90vw); max-height: 90dvh; background: #fff; }
+#videoDialog::backdrop { background: rgba(0,0,0,.72); }
+#videoHeader { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; color: #555; font-size: 13px; }
+#videoClose { margin: 0; padding: 6px 10px; font-size: 11px; background: #f2f4f5; color: #444; }
+#videoContent { width: 100%; aspect-ratio: 16 / 9; background: #111; color: white; display: grid; place-items: center; }
+#videoContent video, #videoContent iframe { display: block; width: 100%; height: 100%; border: 0; }
+#videoSourceLink { display: inline-block; margin-top: 10px; color: #555; font-size: 12px; }
+
+#musicControls { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 8px; }
+#musicMessage { flex-basis: 100%; text-align: center; font-size: 12px; color: #555; }
+#musicMessage:empty { display: none; }
+
+
+#panoOverlay {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+  z-index: 99999 !important;
+  background: #000;
+  overflow: hidden;
+}
+
+#panoCanvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+#panoCanvas canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+#panoTitle { display: none !important; }
+#panoramaButtons { display: none !important; }
+
+#panoClose {
+  position: absolute;
+  z-index: 2;
+  top: 14px;
+  right: 14px;
+  margin: 0;
+  padding: 9px 13px;
+  border-radius: 20px;
+  background: rgba(20, 22, 25, .78);
+  color: #fff;
+}
+
+#panoTitle {
+  position: absolute;
+  z-index: 2;
+  left: 14px;
+  top: 17px;
+  max-width: calc(100% - 115px);
+  color: #fff;
+  font-size: 14px;
+  text-shadow: 0 1px 4px #000;
+}
+
+#panoMessage {
+  position: absolute;
+  z-index: 4;
+  inset: 50% 20px auto;
+  padding: 14px 18px;
+  border-radius: 12px;
+  background: rgba(16,18,20,.88);
+  transform: translateY(-50%);
+  color: #fff;
+  text-align: center;
+  font-size: 14px;
+  pointer-events: none;
+}
+
+@media (max-width: 600px) {
+  #propertyTitle { padding-top: 12px; }
+  #footer { padding-bottom: 14px; }
+  #floors { gap: 6px; padding: 7px; }
+  .floor-button { padding: 7px 9px; }
+}
+
+#tourClose {
+  position: absolute;
+  top: 16px;
+  right: 18px;
+  z-index: 1000;
+  margin: 0;
+  padding: 6px 9px;
+  min-height: 36px;
+  border: 1px solid #dedede;
+  border-radius: 16px;
+  background: rgba(255,255,255,.95);
+  color: #555;
+  font: 11px "Segoe UI", Arial, sans-serif;
+}
+#tourClose:focus-visible { outline: 2px solid #078fa9; outline-offset: 3px; }
+#tourClosed { padding: 64px 20px; text-align: center; color: #555; }
+#tourClosed p { font-size: 14px; }
+#reopenTour { font-size: 13px; }
+@media (max-width: 600px) {
+  #propertyTitle { padding-left: 80px; padding-right: 80px; }
+}
+
+[hidden] {
+  display: none !important;
+}
+
+#portfolioActions { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; padding:4px 12px; background:#fff; }
+#portfolioActions > [hidden] { display:flex !important; visibility:hidden; pointer-events:none; }
+#portfolioActions > a, #portfolioActions > button { box-sizing:border-box; justify-content:center; min-height:36px; margin:0; padding:6px 4px; font:600 13px "Segoe UI",Arial,sans-serif; }
+#locationOpenButton { display:inline-flex; align-items:center; gap:6px; border:0; border-radius:7px; color:#fff; background:#1464c0; }
+#locationOpenButton svg { width:16px; height:16px; fill:currentColor; }
+#portfolioPrice { position:absolute; left:18px; top:19px; z-index:1000; color:#d51011; font:800 clamp(18px,4vw,24px) "Poppins","Segoe UI",Arial,sans-serif; pointer-events:none; max-width:calc(100% - 110px); }
+#locationDialog { border:0; padding:0; width:100%; max-width:100%; height:100dvh; max-height:100dvh; background:#fff; }
+#locationDialog::backdrop { background:#000b; }
+#locationClose { position:absolute; top:8px; right:12px; z-index:1; }
+#locationFrame { border:0; width:100%; height:calc(100% - 50px); margin-top:50px; }
+</style>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+  }
+}
+</script>
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@800&amp;display=swap">
+</head>
+
+<body>
+
+<div id="tour" hidden>
+
+  <div id="propertyTitle" hidden></div>
+  <div id="floors" hidden></div>
+  <div id="tourActions">
+    <div id="lightingComparison" hidden role="group" aria-label="Aydınlatma karşılaştırması">
+      <span>Işık:</span>
+      <button type="button" data-lighting="current" aria-pressed="true">Mevcut</button>
+      <button type="button" data-lighting="neutral" aria-pressed="false">Nötr</button>
+    </div>
+    <div id="panoramaButtons" hidden></div>
+    <div id="musicControls" hidden role="group" aria-label="Portföy müziği">
+      <span id="musicMessage" role="status" aria-live="polite"></span>
+    </div>
+  </div>
+  <div id="status" hidden></div>
+
+  <div id="viewer">
+    <div id="portfolioPrice" hidden></div>
+    <button id="tourClose" type="button" aria-label="3D sunumu kapat">× Kapat</button>
+    <div id="panoOverlay" hidden>
+      <div id="panoTitle"></div>
+      <button id="panoClose" type="button">Kapat ✕</button>
+      <div id="panoCanvas"></div>
+      <div id="panoMessage" hidden></div>
+    </div>
+  </div>
+
+  <div id="portfolioActions">
+    <a id="detailOpenButton" target="_blank" rel="noopener noreferrer" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h18v3H3zm0 6h18v3H3zm0 6h14v3H3z"/></svg>Bilgiler</a>
+    <button id="locationOpenButton" type="button" hidden aria-haspopup="dialog"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a8 8 0 0 0-8 8c0 5.5 8 12 8 12s8-6.5 8-12a8 8 0 0 0-8-8zm0 11a3 3 0 1 1 0-6 3 3 0 0 1 0 6z"/></svg>Konum</button>
+    <button id="videoOpenButton" type="button" hidden aria-haspopup="dialog"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3l15 9-15 9z"/></svg>Video</button>
+  </div>
+  <div id="footer">
+    <div class="footer-line"></div>
+
+    <div class="footer-title">
+      3D MİMARİ SUNUM
+    </div>
+
+    <div class="footer-subtitle">
+      360° İnteraktif Gayrimenkul Deneyimi
+    </div>
+  </div>
+
+</div>
+
+<section id="tourClosed" hidden role="status">
+  <p>Sunum kapatıldı. Bu sekmeyi kapatabilirsiniz.</p>
+  <button id="reopenTour" type="button">Yeniden aç</button>
+</section>
+
+<dialog id="videoDialog" aria-labelledby="videoHeading">
+  <div id="videoHeader"><span id="videoHeading">Portföy videosu</span><button id="videoClose" type="button">× Kapat</button></div>
+  <div id="videoContent"></div>
+  <a id="videoSourceLink" target="_blank" rel="noopener noreferrer">Videoyu yeni sekmede aç</a>
+</dialog>
+
+<dialog id="locationDialog" aria-label="Portföy konumu"><button id="locationClose" type="button">× Kapat</button><iframe id="locationFrame" title="Portföy konum fotoğrafı" referrerpolicy="no-referrer"></iframe></dialog>
+
+<audio id="backgroundMusic" loop playsinline preload="auto"></audio>
+
+<div id="panel" hidden>
+
+  <h1>3D Ev Modelleri</h1>
+
+  <p>Görüntülemek veya paylaşmak istediğiniz modeli seçin.</p>
+
+  <div id="list">Modeller yükleniyor...</div>
+
+</div>
+
+<script type="module">
+
+import * as THREE from "three";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { Reflector } from "three/addons/objects/Reflector.js";
+
+const API =
+  "https://api.github.com/repos/3d-ev-modeli/3d-evler";
+
+const params = new URLSearchParams(location.search);
+
+const file = params.get("model");
+let villa = params.get("villa");
+
+let appConfig = { models: {}, villas: {}, musicUrl: "" };
+async function loadAppConfig() {
+  try {
+    const response = await fetch("./config/portfolios.json?rev=" + Date.now());
+    if (response.ok) appConfig = await response.json();
+    const videoResponse = await fetch("./config/test-links-064v.json?rev=" + Date.now());
+    if (videoResponse.ok) {
+      const links = await videoResponse.json();
+      videoLinks = links.videos || {};
+      detailLinks = links.details || {};
+      locationLinks = links.locations || {};
+      prices = links.prices || {};
+    }
+  } catch (error) {
+    console.warn("Portföy ayarları yüklenemedi; varsayılan ayarlar kullanılacak.", error);
+  }
+}
+
+function getPortfolioConfig(folder, name) {
+  const base = folder
+    ? (appConfig.villas?.[folder] || {})
+    : (appConfig.models?.[name] || {});
+  const floor = folder ? (base.floors?.[name] || {}) : {};
+  return { ...base, ...floor };
+}
+
+const viewer = document.getElementById("viewer");
+const tour = document.getElementById("tour");
+const panel = document.getElementById("panel");
+const list = document.getElementById("list");
+const floors = document.getElementById("floors");
+const propertyTitle = document.getElementById("propertyTitle");
+const status = document.getElementById("status");
+const panoramaButtons = document.getElementById("panoramaButtons");
+const backgroundMusic = document.getElementById("backgroundMusic");
+const musicControls = document.getElementById("musicControls");
+const musicMessage = document.getElementById("musicMessage");
+const panoOverlay = document.getElementById("panoOverlay");
+const panoCanvas = document.getElementById("panoCanvas");
+const panoTitle = document.getElementById("panoTitle");
+const panoMessage = document.getElementById("panoMessage");
+const panoClose = document.getElementById("panoClose");
+
+let tourClosed = false;
+document.getElementById("reopenTour").addEventListener("click", () => location.reload());
+document.getElementById("tourClose").addEventListener("click", closeTour);
+
+function closeTour() {
+  if (tourClosed) return;
+  tourClosed = true;
+  closeVideo(false);
+  ++loadID;
+  ++musicRequest;
+  musicNeedsGesture = false;
+  cinematicActive = false;
+  clearTimeout(resumeTimer);
+  closePanorama();
+  backgroundMusic.pause();
+  backgroundMusic.removeAttribute("src");
+  delete backgroundMusic.dataset.url;
+  backgroundMusic.load();
+  if (controls) controls.dispose();
+  if (renderer) renderer.dispose();
+  tour.hidden = true;
+  document.getElementById("tourClosed").hidden = false;
+  document.getElementById("reopenTour").focus();
+  // Shared links embed the viewer; leave the whole presentation, not just its iframe.
+  let host = window;
+  try {
+    if (window.top.location.origin === location.origin) host = window.top;
+  } catch { /* Cross-origin embeds retain the local closed screen. */ }
+  if (host.history.length > 1) host.history.back();
+}
+
+let scene, camera, renderer, controls, ground;
+let featureGroup = null;
+let panoramaMarkers = [];
+let animatedPanoramaGroups = [];
+let animatedArrows = [];
+let activePanorama = null;
+let panoRenderer = null, panoScene = null, panoCamera = null, panoControls = null;
+let panoAnimationFrame = 0;
+let panoResizeObserver = null;
+let panoPinchStartDistance = 0;
+let panoPinchStartFov = 75;
+let panoTouchStartHandler = null;
+let panoTouchMoveHandler = null;
+let panoTouchEndHandler = null;
+let panoWheelHandler = null;
+let currentFolder = null;
+let currentFileName = null;
+
+let currentModel = null;
+let loadID = 0;
+
+let baseDistance = 10;
+let cinematicTime = 0;
+let resumeTimer = null;
+
+let cinematicActive = false;
+let interacting = false;
+let transitionTime = 0;
+
+const clock = new THREE.Clock();
+
+let videoLinks = {};
+let detailLinks = {};
+let locationLinks = {}, prices = {};
+const locationButton = document.getElementById("locationOpenButton");
+const locationDialog = document.getElementById("locationDialog");
+const locationFrame = document.getElementById("locationFrame");
+let activeLocation = null;
+function locationTarget(value) {
+  try { const url = new URL(value); if (url.protocol !== "https:" || url.hostname !== "drive.google.com" || url.username || url.password) return null;
+    const id = url.pathname.match(/^\/file\/d\/([\w-]+)(?:\/|$)/)?.[1] || url.searchParams.get("id");
+    if (!id || !/^[\w-]+$/.test(id)) return null;
+    const preview = new URL("https://drive.google.com/file/d/" + id + "/preview");
+    if (url.searchParams.has("resourcekey")) preview.searchParams.set("resourcekey",url.searchParams.get("resourcekey"));
+    return preview.href;
+  } catch { return null; }
+}
+function displayPrice(value) {
+  let raw = String(value ?? "").trim();
+  if (!raw) return "";
+  raw = raw.replace(/₺|\bTL\b/gi,"").trim();
+  let n = Number(raw);
+  if (/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(raw)) n = Number(raw.replace(/\./g,"").replace(",","."));
+  return Number.isFinite(n) && n > 0 ? "₺" + n.toLocaleString("tr-TR",{maximumFractionDigits:2}) : "";
+}
+locationButton.addEventListener("click",()=>{ if (!activeLocation || tourClosed) return; closePanorama(); ++musicRequest; backgroundMusic.pause(); musicNeedsGesture=!!backgroundMusic.dataset.url; locationFrame.src=activeLocation; locationDialog.showModal(); });
+document.getElementById("locationClose").addEventListener("click",()=>locationDialog.close());
+locationDialog.addEventListener("close",()=>locationFrame.removeAttribute("src"));
+const detailButton = document.getElementById("detailOpenButton");
+const videoButton = document.getElementById("videoOpenButton");
+const videoDialog = document.getElementById("videoDialog");
+const videoContent = document.getElementById("videoContent");
+const videoSourceLink = document.getElementById("videoSourceLink");
+let videoIsOpen = false;
+let activeVideoUrl = "";
+
+function canonicalVideoRef(value) {
+  const match = String(value || "").replace(/^ref-/i, "").match(/^0*(\d+)([vd])$/i);
+  return match ? String(Number(match[1])) + match[2].toLowerCase() : "";
+}
+
+function videoTarget(value) {
+  if (typeof value !== "string" || !value.trim()) return null;
+  let url;
+  try { url = new URL(value); } catch { return null; }
+  if (url.protocol !== "https:" || url.username || url.password) return null;
+  const host = url.hostname.toLowerCase();
+  if (host === "drive.google.com") {
+    const id = url.pathname.match(/^\/file\/d\/([\w-]+)(?:\/|$)/)?.[1] || url.searchParams.get("id");
+    if (id && /^[\w-]+$/.test(id)) {
+      const preview = new URL("https://drive.google.com/file/d/" + id + "/preview");
+      if (url.searchParams.has("resourcekey")) preview.searchParams.set("resourcekey", url.searchParams.get("resourcekey"));
+      return { kind: "iframe", url: preview.href, source: url.href };
+    }
+  }
+  if (["youtube.com", "www.youtube.com", "m.youtube.com", "youtu.be"].includes(host)) {
+    const id = host === "youtu.be" ? url.pathname.split("/")[1]
+      : url.searchParams.get("v") || url.pathname.match(/^\/(?:embed|shorts)\/([\w-]+)/)?.[1];
+    if (id && /^[\w-]{11}$/.test(id)) return {kind: "iframe", url: "https://www.youtube-nocookie.com/embed/" + id, source: url.href};
+  }
+  if (/\.(mp4|webm|ogv)$/i.test(url.pathname)) return {kind: "video", url: url.href, source: url.href};
+  return {kind: "link", url: url.href, source: url.href};
+}
+
+function applyVideo(folder, name) {
+  closeVideo(false);
+  const ref = canonicalVideoRef(getPortfolioConfig(folder, name).ref || folder);
+  activeVideoUrl = videoLinks[ref] || "";
+  activeLocation = locationTarget(locationLinks[ref]);
+  locationButton.hidden = !activeLocation;
+  const price = document.getElementById("portfolioPrice");
+  price.textContent = displayPrice(prices[ref]);
+  price.hidden = !price.textContent;
+  videoButton.hidden = !videoTarget(activeVideoUrl);
+  const detail = videoTarget(detailLinks[ref]);
+  detailButton.hidden = !detail;
+  if (detail) detailButton.href = detail.source;
+  else detailButton.removeAttribute("href");
+}
+
+detailButton.addEventListener("click", () => {
+  ++musicRequest;
+  backgroundMusic.pause();
+  musicNeedsGesture = !!backgroundMusic.dataset.url;
+});
+
+function releaseVideo(allowMusicGesture = true) {
+  videoContent.querySelectorAll("video").forEach(video => {
+    video.pause();
+    video.removeAttribute("src");
+    video.load();
+  });
+  videoContent.replaceChildren(); // Removing an iframe stops its playback too.
+  videoIsOpen = false;
+  musicNeedsGesture = allowMusicGesture && !tourClosed && !!backgroundMusic.dataset.url;
+}
+
+function closeVideo(allowMusicGesture = true) {
+  if (!videoIsOpen && !videoDialog.open) return;
+  releaseVideo(allowMusicGesture);
+  if (videoDialog.open) videoDialog.close();
+}
+
+function openVideo() {
+  const target = videoTarget(activeVideoUrl);
+  if (!target || tourClosed) return;
+  closePanorama();
+  ++musicRequest;
+  musicNeedsGesture = false;
+  backgroundMusic.pause();
+  videoIsOpen = true;
+  videoContent.replaceChildren();
+  videoSourceLink.href = target.source;
+  if (target.kind === "link") {
+    const message = document.createElement("p");
+    message.textContent = "Videoyu aşağıdaki bağlantıdan açabilirsiniz.";
+    videoContent.appendChild(message);
+  } else {
+    const media = document.createElement(target.kind);
+    media.src = target.url;
+    if (target.kind === "video") {
+      media.controls = true;
+      media.playsInline = true;
+      media.preload = "metadata";
+    } else {
+      media.title = "Portföy videosu";
+      media.allow = "autoplay; fullscreen; picture-in-picture";
+      media.allowFullscreen = true;
+      media.referrerPolicy = "strict-origin-when-cross-origin";
+    }
+    videoContent.appendChild(media);
+  }
+  videoDialog.showModal();
+}
+videoButton.addEventListener("click", openVideo);
+document.getElementById("videoClose").addEventListener("click", () => closeVideo());
+videoDialog.addEventListener("close", () => { if (videoIsOpen) releaseVideo(); });
+
+const compareLighting = params.get("compareLight") === "1";
+const lightingControl = document.getElementById("lightingComparison");
+let lightingMode = "current";
+let hemisphereLight, keyLight, fillLight;
+let modelHasLights = false;
+
+function setLighting(mode) {
+  lightingMode = mode === "neutral" ? "neutral" : "current";
+  if (!hemisphereLight) return;
+  const neutral = lightingMode === "neutral";
+  hemisphereLight.visible = !neutral || !modelHasLights;
+  hemisphereLight.intensity = neutral ? 1 : 1.8;
+  hemisphereLight.groundColor.set(neutral ? 0xffffff : 0xaaaaaa);
+  keyLight.visible = !neutral;
+  fillLight.visible = !neutral;
+  lightingControl.querySelectorAll("button").forEach(button => {
+    const selected = button.dataset.lighting === lightingMode;
+    button.setAttribute("aria-pressed", String(selected));
+  });
+  // Reflection, materials, camera and model transforms are deliberately unchanged.
+}
+lightingControl.hidden = !compareLighting;
+lightingControl.querySelectorAll("button").forEach(button => {
+  button.addEventListener("click", () => {
+    pauseCinematic();
+    setLighting(button.dataset.lighting);
+  });
+});
+
+
+function safeName(name) {
+
+  return typeof name === "string" &&
+    name.length > 0 &&
+    name !== "." &&
+    name !== ".." &&
+    !name.includes("/") &&
+    !name.includes("\\");
+
+}
+
+function isGLB(name) {
+
+  return safeName(name) &&
+    name.toLowerCase().endsWith(".glb");
+
+}
+
+function niceName(name) {
+
+  return name
+    .replace(/\.glb$/i, "")
+    .replace(/^\d+[-_ ]+/, "")
+    .replace(/[-_]+/g, " ")
+    .replace(/\s+/g, " ")
+    .replace(/(^|\s)\S/g,
+      c => c.toLocaleUpperCase("tr"))
+    .trim();
+
+}
+
+function parseTitle(name) {
+
+  const clean = name
+    .replace(/\.glb$/i, "")
+    .trim();
+
+  const match = clean.match(
+    /^(\d+)\s*-\s*(.+)$/
+  );
+
+  if (!match) return null;
+
+ const parts = match[2].split(/\s*-\s*/);
+
+let location = parts[0].trim();
+let details = parts.slice(1).join(" ").trim();
+
+if (parts.length >= 3) {
+  location = parts.slice(0, 2).join(" - ");
+  details = parts.slice(2).join(" ").trim();
+} else {
+  location = location.replace(/^(\S+)\s+(.+)$/, "$1 - $2");
+}
+
+return {
+  ref: match[1],
+  location: location,
+  details: details
+};
+}
+
+function showTitle(name, folder = null) {
+  propertyTitle.replaceChildren();
+  const cfg = getPortfolioConfig(folder, folder ? null : name);
+  const data = parseTitle(name);
+  const refValue = cfg.ref || data?.ref || "";
+  const locationValue = cfg.location || data?.location || niceName(name);
+  const detailsValue = cfg.details || data?.details || "";
+
+  if (refValue) {
+    const ref = document.createElement("div");
+    ref.className = "ref";
+    ref.textContent = "Ref: " + String(refValue).replace(/^Ref\s*:?\s*/i, "");
+    propertyTitle.appendChild(ref);
+  }
+
+  const location = document.createElement("div");
+  location.textContent = String(locationValue).toLocaleUpperCase("tr-TR");
+  propertyTitle.appendChild(location);
+
+  if (detailsValue) {
+    const details = document.createElement("div");
+    details.textContent = niceName(String(detailsValue));
+    propertyTitle.appendChild(details);
+  }
+  propertyTitle.hidden = false;
+}
+
+function compareNames(a, b) {
+
+  return a.localeCompare(b, "tr", {
+    numeric: true,
+    sensitivity: "base"
+  });
+
+}
+
+async function getJSON(url) {
+
+  const response = await fetch(url);
+
+  if (!response.ok) throw new Error("API");
+
+  return response.json();
+
+}
+
+function modelPath(folder, name) {
+
+  if (folder) {
+
+    return "./" +
+      encodeURIComponent(folder) + "/" +
+      encodeURIComponent(name);
+
+  }
+
+  return "./" + encodeURIComponent(name);
+
+}
+
+function showStatus(message) {
+
+  status.textContent = message;
+  status.hidden = false;
+
+}
+
+function floorRank(name) {
+  const n = String(name).toLocaleLowerCase("tr-TR");
+  if (/bodrum|basement/.test(n)) return 0;
+  if (/zemin|ground/.test(n)) return 1;
+  if (/1\s*\.?\s*kat|birinci|first|(^|[^0-9])1([^0-9]|$)/.test(n)) return 2;
+  if (/2\s*\.?\s*kat|ikinci|second|(^|[^0-9])2([^0-9]|$)/.test(n)) return 3;
+  return 10;
+}
+
+function floorLabel(name) {
+  const rank = floorRank(name);
+  if (rank === 0) return "Bodrum";
+  if (rank === 1) return "Zemin";
+  if (rank === 2) return "1. Kat";
+  if (rank === 3) return "2. Kat";
+  return niceName(name);
+}
+
+let musicRequest = 0;
+let musicNeedsGesture = false;
+function musicUrl(value) {
+  if (typeof value !== "string" || !value.trim()) return "";
+  try {
+    const url = new URL(value.trim(), location.href);
+    if (!["https:", "http:"].includes(url.protocol)) return "";
+    if (url.hostname === "drive.google.com") {
+      const id = url.pathname.match(/^\/file\/d\/([^/]+)/)?.[1] || url.searchParams.get("id");
+      if (id) {
+        const direct = new URL("https://drive.google.com/uc");
+        direct.searchParams.set("export", "download");
+        direct.searchParams.set("id", id);
+        const resourceKey = url.searchParams.get("resourcekey");
+        if (resourceKey) direct.searchParams.set("resourcekey", resourceKey);
+        return direct.href;
+      }
+    }
+    return url.href;
+  } catch { return ""; }
+}
+function syncMusicControl() {}
+async function startMusic() {
+  if (tourClosed) return;
+  const request = ++musicRequest;
+  musicMessage.textContent = "";
+  try {
+    await backgroundMusic.play();
+    if (request === musicRequest) {
+      musicNeedsGesture = false;
+      syncMusicControl();
+    }
+  } catch (error) {
+    if (request !== musicRequest) return;
+    syncMusicControl();
+    musicNeedsGesture = error.name === "NotAllowedError";
+    musicMessage.textContent = musicNeedsGesture
+      ? ""
+      : "Müzik yüklenemedi. MP3 bağlantısını ve Drive paylaşım iznini kontrol edin.";
+  }
+}
+function applyMusic(folder, name) {
+  if (tourClosed) return;
+  // Only this portfolio (or its floor) supplies the track; never use a shared fallback.
+  const url = musicUrl(getPortfolioConfig(folder, name).musicUrl);
+  musicControls.hidden = !url;
+  if (backgroundMusic.dataset.url === url) return; // Keep playback/pause across floors.
+  ++musicRequest;
+  musicNeedsGesture = false;
+  backgroundMusic.pause();
+  backgroundMusic.dataset.url = url;
+  musicMessage.textContent = "";
+  if (!url) {
+    backgroundMusic.removeAttribute("src");
+    backgroundMusic.load();
+    syncMusicControl();
+    return;
+  }
+  backgroundMusic.src = url;
+  backgroundMusic.loop = true;
+  backgroundMusic.autoplay = false;
+  backgroundMusic.muted = false;
+  backgroundMusic.volume = 0.14;
+  syncMusicControl();
+  musicNeedsGesture = true;
+}
+function resumeMusicOnGesture(event) {
+  if (tourClosed || videoIsOpen || locationDialog.open || event.target.closest?.("#tourClose, #portfolioActions, #lightingComparison")) return;
+  if (!musicNeedsGesture || !backgroundMusic.dataset.url) return;
+  musicNeedsGesture = false;
+  void startMusic();
+}
+// Start inside a trusted interaction without blocking model rotation, pan or zoom.
+tour.addEventListener("pointerdown", resumeMusicOnGesture, { passive: true });
+tour.addEventListener("touchend", resumeMusicOnGesture, { passive: true });
+tour.addEventListener("pointerup", resumeMusicOnGesture, { passive: true });
+tour.addEventListener("click", resumeMusicOnGesture);
+tour.addEventListener("wheel", resumeMusicOnGesture, { passive: true });
+tour.addEventListener("keydown", resumeMusicOnGesture);
+backgroundMusic.addEventListener("volumechange", syncMusicControl);
+backgroundMusic.addEventListener("play", syncMusicControl);
+backgroundMusic.addEventListener("pause", syncMusicControl);
+backgroundMusic.addEventListener("error", () => {
+  if (!backgroundMusic.dataset.url) return;
+  syncMusicControl();
+  musicMessage.textContent = "Müzik yüklenemedi. MP3 bağlantısını ve Drive paylaşım iznini kontrol edin.";
+});
+
+function closePanorama() {
+  panoOverlay.hidden = true;
+  activePanorama = null;
+  if (panoAnimationFrame) cancelAnimationFrame(panoAnimationFrame);
+  panoAnimationFrame = 0;
+  if (panoRenderer && panoRenderer.domElement) {
+    const canvas = panoRenderer.domElement;
+    if (panoTouchStartHandler) canvas.removeEventListener("touchstart", panoTouchStartHandler, true);
+    if (panoTouchMoveHandler) canvas.removeEventListener("touchmove", panoTouchMoveHandler, true);
+    if (panoTouchEndHandler) {
+      canvas.removeEventListener("touchend", panoTouchEndHandler, true);
+      canvas.removeEventListener("touchcancel", panoTouchEndHandler, true);
+    }
+    if (panoWheelHandler) canvas.removeEventListener("wheel", panoWheelHandler);
+  }
+  panoTouchStartHandler = panoTouchMoveHandler = panoTouchEndHandler = panoWheelHandler = null;
+  panoPinchStartDistance = 0;
+  if (panoControls) panoControls.dispose();
+  if (panoResizeObserver) panoResizeObserver.disconnect();
+  panoResizeObserver = null;
+  if (panoRenderer) {
+    panoRenderer.dispose();
+    panoRenderer.domElement.remove();
+  }
+  if (panoScene) {
+    panoScene.traverse(obj => {
+      if (obj.geometry) obj.geometry.dispose();
+      if (obj.material) {
+        const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+        mats.forEach(m => {
+          if (m.map) m.map.dispose();
+          m.dispose();
+        });
+      }
+    });
+  }
+  panoRenderer = panoScene = panoCamera = panoControls = null;
+}
+
+panoClose.addEventListener("click", closePanorama);
+
+function openPanorama(pano) {
+  if (!pano || !pano.url) return;
+  closePanorama();
+  activePanorama = pano;
+  panoTitle.textContent = "";
+  panoTitle.hidden = true;
+  panoramaButtons.hidden = true;
+  panoramaButtons.style.setProperty("display", "none", "important");
+  panoMessage.textContent = "360° fotoğraf yükleniyor…";
+  panoMessage.hidden = false;
+  panoOverlay.hidden = false;
+  panoOverlay.style.setProperty("position", "fixed", "important");
+  panoOverlay.style.setProperty("inset", "0", "important");
+  panoOverlay.style.setProperty("width", "100vw", "important");
+  panoOverlay.style.setProperty("height", "100dvh", "important");
+  panoOverlay.style.setProperty("z-index", "99999", "important");
+  panoCanvas.style.setProperty("position", "absolute", "important");
+  panoCanvas.style.setProperty("inset", "0", "important");
+  panoCanvas.style.setProperty("width", "100%", "important");
+  panoCanvas.style.setProperty("height", "100%", "important");
+
+  panoScene = new THREE.Scene();
+  panoCamera = new THREE.PerspectiveCamera(75, 1, 0.1, 1100);
+  panoCamera.position.set(0, 0, 0.1);
+  panoRenderer = new THREE.WebGLRenderer({ antialias: true });
+  panoRenderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  panoCanvas.appendChild(panoRenderer.domElement);
+
+  const geometry = new THREE.SphereGeometry(500, 64, 40);
+  geometry.scale(-1, 1, 1);
+  const material = new THREE.MeshBasicMaterial({ color: 0xffffff });
+  const sphere = new THREE.Mesh(geometry, material);
+  panoScene.add(sphere);
+
+  const loader = new THREE.TextureLoader();
+  loader.setCrossOrigin("anonymous");
+  loader.load(pano.url, texture => {
+    texture.colorSpace = THREE.SRGBColorSpace;
+    material.map = texture;
+    material.needsUpdate = true;
+    panoMessage.hidden = true;
+    const yaw = THREE.MathUtils.degToRad(Number(pano.initialYaw) || 0);
+    const pitch = THREE.MathUtils.degToRad(Number(pano.initialPitch) || 0);
+    panoCamera.position.set(
+      0.1 * Math.cos(pitch) * Math.sin(yaw),
+      0.1 * Math.sin(pitch),
+      0.1 * Math.cos(pitch) * Math.cos(yaw)
+    );
+    panoCamera.lookAt(0, 0, 0);
+    panoControls.update();
+  }, undefined, error => {
+    panoMessage.textContent = "Fotoğraf yüklenemedi. Bağlantı, paylaşım izni veya CORS ayarını kontrol edin.";
+    console.error("360 fotoğraf yüklenemedi:", error);
+  });
+
+  panoControls = new OrbitControls(panoCamera, panoRenderer.domElement);
+  panoControls.enablePan = false;
+  panoControls.enableZoom = false; // Yakınlaştırmayı aşağıdaki özel FOV kontrolü yönetir.
+  panoControls.minDistance = 0.003;
+  panoControls.maxDistance = 0.1;
+  panoControls.zoomSpeed = 2.0;
+  panoControls.rotateSpeed = -0.5;
+  panoRenderer.domElement.style.touchAction = "none";
+  panoRenderer.domElement.style.webkitUserSelect = "none";
+  panoControls.touches.TWO = THREE.TOUCH.DOLLY_PAN;
+  panoControls.target.set(0, 0, 0);
+
+  // iPhone/iPad için bağımsız iki parmak pinch zoom.
+  const touchDistance = (touches) => {
+    const dx = touches[0].clientX - touches[1].clientX;
+    const dy = touches[0].clientY - touches[1].clientY;
+    return Math.hypot(dx, dy);
+  };
+  // Özel zoom: pinch ve tekerlek FOV üzerinden çalışır; OrbitControls zoom kapalıdır.
+  panoTouchStartHandler = (event) => {
+    if (event.touches.length === 2) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      panoPinchStartDistance = touchDistance(event.touches);
+      panoPinchStartFov = panoCamera.fov;
+    }
+  };
+  panoTouchMoveHandler = (event) => {
+    if (event.touches.length === 2 && panoPinchStartDistance > 0) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      const currentDistance = touchDistance(event.touches);
+      const nextFov = panoPinchStartFov * panoPinchStartDistance / Math.max(currentDistance, 1);
+      panoCamera.fov = THREE.MathUtils.clamp(nextFov, 20, 100);
+      panoCamera.updateProjectionMatrix();
+    }
+  };
+  panoTouchEndHandler = (event) => {
+    if (event.touches.length < 2) panoPinchStartDistance = 0;
+  };
+  const canvas = panoRenderer.domElement;
+  canvas.style.touchAction = "none";
+  canvas.style.webkitUserSelect = "none";
+  canvas.addEventListener("touchstart", panoTouchStartHandler, { passive: false, capture: true });
+  canvas.addEventListener("touchmove", panoTouchMoveHandler, { passive: false, capture: true });
+  canvas.addEventListener("touchend", panoTouchEndHandler, { passive: true, capture: true });
+  canvas.addEventListener("touchcancel", panoTouchEndHandler, { passive: true, capture: true });
+
+  // Masaüstü fare tekerleği: aynı FOV zoom aralığını kullanır.
+  panoWheelHandler = (event) => {
+    event.preventDefault();
+    const factor = Math.exp(event.deltaY * 0.0018);
+    panoCamera.fov = THREE.MathUtils.clamp(panoCamera.fov * factor, 20, 100);
+    panoCamera.updateProjectionMatrix();
+  };
+  canvas.addEventListener("wheel", panoWheelHandler, { passive: false });
+  panoControls.update();
+
+  const resize = () => {
+    if (!panoRenderer || !panoCamera) return;
+    const w = Math.max(panoCanvas.clientWidth, 1);
+    const h = Math.max(panoCanvas.clientHeight, 1);
+    panoCamera.aspect = w / h;
+    panoCamera.updateProjectionMatrix();
+    panoRenderer.setSize(w, h);
+  };
+  panoResizeObserver = new ResizeObserver(resize);
+  panoResizeObserver.observe(panoCanvas);
+  resize();
+
+  const renderPano = () => {
+    if (!panoRenderer || panoOverlay.hidden) return;
+    panoControls.update();
+    panoRenderer.render(panoScene, panoCamera);
+    panoAnimationFrame = requestAnimationFrame(renderPano);
+  };
+  renderPano();
+}
+
+function createPanoramaBadgeTexture(){
+  const canvas=document.createElement("canvas");
+  canvas.width=512;
+  canvas.height=256;
+  const ctx=canvas.getContext("2d");
+  ctx.fillStyle="#078fa9";
+  ctx.beginPath();
+  ctx.roundRect(18,18,476,220,92);
+  ctx.fill();
+  ctx.strokeStyle="#ffffff";
+  ctx.lineWidth=12;
+  ctx.stroke();
+  ctx.fillStyle="#ffffff";
+  ctx.font="bold 118px Segoe UI, Arial";
+  ctx.textAlign="center";
+  ctx.textBaseline="middle";
+  ctx.fillText("360°",256,132);
+  const texture=new THREE.CanvasTexture(canvas);
+  texture.colorSpace=THREE.SRGBColorSpace;
+  return texture;
+}
+
+function addArrow(spec, color, modelSize) {
+  if (!spec || !Array.isArray(spec.position) || spec.position.length !== 3 ||
+      !Array.isArray(spec.direction) || spec.direction.length !== 3) return;
+
+  const direction = new THREE.Vector3(...spec.direction);
+  direction.y = 0;
+  if (direction.lengthSq() < 0.0001) return;
+  direction.normalize();
+
+  const length = Number(spec.length) || modelSize * 0.22;
+  const shape = new THREE.Shape();
+  shape.moveTo(-0.20, -0.50);
+  shape.lineTo(0.20, -0.50);
+  shape.lineTo(0.20, 0.08);
+  shape.lineTo(0.48, 0.08);
+  shape.lineTo(0, 0.50);
+  shape.lineTo(-0.48, 0.08);
+  shape.lineTo(-0.20, 0.08);
+  shape.closePath();
+
+  const geometry = new THREE.ExtrudeGeometry(shape, {
+    depth: 0.035,
+    bevelEnabled: true,
+    bevelSegments: 3,
+    steps: 1,
+    bevelSize: 0.012,
+    bevelThickness: 0.008,
+    curveSegments: 2
+  });
+  geometry.rotateX(Math.PI / 2);
+
+  const material = new THREE.MeshStandardMaterial({
+    color,
+    roughness: 0.43,
+    metalness: 0.025,
+    emissive: color,
+    emissiveIntensity: 0.025,
+    side: THREE.DoubleSide,
+    depthTest: true,
+    depthWrite: true
+  });
+
+  const arrow = new THREE.Mesh(geometry, material);
+  arrow.scale.setScalar(length);
+  arrow.rotation.y = Math.atan2(direction.x, direction.z);
+  const origin = new THREE.Vector3(...spec.position);
+  arrow.position.set(
+    origin.x,
+    origin.y + (0.035 + 0.008) * length + 0.004,
+    origin.z
+  );
+  arrow.userData.basePosition = arrow.position.clone();
+  arrow.userData.moveDirection = direction.clone();
+  arrow.userData.moveAmount = Math.max(Number(spec.moveAmount) || 0, length * 0.12);
+  arrow.castShadow = true;
+  arrow.receiveShadow = true;
+  featureGroup.add(arrow);
+  animatedArrows.push(arrow);
+}
+
+function setupModelFeatures(folder, name, size) {
+  if (featureGroup) {
+    scene.remove(featureGroup);
+    featureGroup.traverse(obj => {
+      if (obj.geometry) obj.geometry.dispose();
+      if (obj.material) {
+        const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+        mats.forEach(m => {
+          if(m.map)m.map.dispose();
+          m.dispose();
+        });
+      }
+    });
+  }
+  featureGroup = new THREE.Group();
+  scene.add(featureGroup);
+  panoramaMarkers = [];
+  animatedPanoramaGroups = [];
+  animatedArrows = [];
+
+  const cfg = getPortfolioConfig(folder, name);
+  const panoramas = Array.isArray(cfg.panoramas) ? cfg.panoramas : [];
+  panoramaButtons.replaceChildren();
+  panoramas.forEach((pano, index) => {
+    if (!pano || !pano.url) return;
+    const button = document.createElement("button");
+    button.className = "panorama-button";
+    button.type = "button";
+    button.textContent = "360° · " + (pano.title || `Oda ${index + 1}`);
+    button.addEventListener("click", () => openPanorama(pano));
+    panoramaButtons.appendChild(button);
+
+    if (Array.isArray(pano.position) && pano.position.length === 3) {
+      const marker = new THREE.Group();
+      const radius = Math.max(size.length() * 0.014, 0.055);
+
+      // Tek, küçük 360° etiketi: zemine paralel; ayrı yuvarlak taban/halka yok.
+      const hitTarget = new THREE.Mesh(
+        new THREE.SphereGeometry(radius * 0.9, 18, 14),
+        new THREE.MeshBasicMaterial({ color: 0x078fa9, transparent: true, opacity: 0.001, depthTest: false })
+      );
+      hitTarget.position.y = radius * 0.12;
+      hitTarget.userData.panorama = pano;
+      hitTarget.renderOrder = 21;
+      marker.add(hitTarget);
+
+      const badge = new THREE.Mesh(
+        new THREE.PlaneGeometry(radius * 0.92, radius * 0.46),
+        new THREE.MeshBasicMaterial({
+          map: createPanoramaBadgeTexture(),
+          transparent: true,
+          side: THREE.DoubleSide,
+          depthTest: true,
+          depthWrite: false
+        })
+      );
+      badge.rotation.x = -Math.PI / 2;
+      badge.position.y = 0.012;
+      badge.renderOrder = 22;
+      badge.userData.panorama = pano;
+      marker.add(badge);
+
+      marker.position.set(...pano.position);
+      marker.userData.baseY = marker.position.y;
+      marker.userData.floatHeight = radius * 0.015;
+      marker.userData.phase = index * 0.7;
+      featureGroup.add(marker);
+      panoramaMarkers.push(hitTarget, badge);
+      animatedPanoramaGroups.push(marker);
+    }
+  });
+  panoramaButtons.hidden = panoramaButtons.childElementCount === 0;
+
+  const isGround = folder && floorRank(name) === 1;
+  if (isGround && cfg.entranceArrow) addArrow(cfg.entranceArrow, 0xe31b32, size.length());
+  if (Array.isArray(cfg.stairArrows)) {
+    cfg.stairArrows.forEach(spec => addArrow(spec, 0x19a45b, size.length()));
+  }
+}
+
+function applyPlatformStyle(folder, name) {
+  if (!ground) return;
+  const isGround = folder && floorRank(name) === 1;
+  ground.visible = !isGround;
+  if (!ground.material?.uniforms?.color) return;
+  ground.material.uniforms.color.value.set("#ffffff");
+}
+
+function handlePanoramaMarkerClick(event) {
+  if (!panoramaMarkers.length || panoOverlay.hidden === false) return;
+  const rect = renderer.domElement.getBoundingClientRect();
+  const pointer = new THREE.Vector2(
+    ((event.clientX - rect.left) / rect.width) * 2 - 1,
+    -((event.clientY - rect.top) / rect.height) * 2 + 1
+  );
+  const raycaster = new THREE.Raycaster();
+  raycaster.setFromCamera(pointer, camera);
+  const hits = raycaster.intersectObjects(panoramaMarkers, false);
+  if (hits.length && hits[0].object.userData.panorama) {
+    openPanorama(hits[0].object.userData.panorama);
+  }
+}
+
+function resizeViewer() {
+
+  if (!renderer) return;
+
+  const width = Math.max(viewer.clientWidth, 1);
+  const height = Math.max(viewer.clientHeight, 1);
+
+  camera.aspect = width / height;
+  camera.updateProjectionMatrix();
+
+  renderer.setSize(width, height);
+
+}
+
+function pauseCinematic() {
+
+  clearTimeout(resumeTimer);
+
+  cinematicActive = false;
+
+  if (controls) {
+
+    controls.autoRotate = false;
+
+  }
+
+}
+
+function scheduleResume() {
+  if (compareLighting) return;
+
+  clearTimeout(resumeTimer);
+
+  resumeTimer = setTimeout(() => {
+
+    if (currentModel && !interacting) {
+
+      cinematicActive = true;
+      transitionTime = 0;
+
+    }
+
+  }, 5000);
+
+}
+
+function initViewer() {
+
+  if (renderer) return;
+
+  scene = new THREE.Scene();
+
+  scene.background = new THREE.Color(0xffffff);
+
+  camera = new THREE.PerspectiveCamera(
+    40, 1, 0.01, 200
+  );
+
+  camera.position.set(0, 10, 10);
+
+  renderer = new THREE.WebGLRenderer({
+    antialias: true
+  });
+
+  renderer.setPixelRatio(
+    Math.min(devicePixelRatio, 2)
+  );
+
+  renderer.shadowMap.enabled = true;
+
+  renderer.shadowMap.type =
+    THREE.PCFSoftShadowMap;
+
+  viewer.appendChild(renderer.domElement);
+  renderer.domElement.addEventListener("click", handlePanoramaMarkerClick);
+
+  hemisphereLight = new THREE.HemisphereLight(0xffffff, 0xaaaaaa, 1.8);
+  scene.add(hemisphereLight);
+
+  const light = new THREE.DirectionalLight(
+    0xffffff, 2
+  );
+
+  light.position.set(5, 10, 5);
+  light.castShadow = true;
+  light.shadow.mapSize.set(2048, 2048);
+  light.shadow.normalBias = 0.02;
+  light.shadow.intensity = 0.55;
+
+  scene.add(light);
+  keyLight = light;
+
+  fillLight = new THREE.DirectionalLight(0xffffff, 0.5);
+  fillLight.position.set(-5, 6, -5);
+  scene.add(fillLight);
+
+  ground = new Reflector(
+    new THREE.PlaneGeometry(200, 200),
+    {
+      color: 0xffffff,
+      textureWidth: 2048,
+      textureHeight: 2048
+    }
+  );
+
+  ground.rotation.x = -Math.PI / 2;
+
+  scene.add(ground);
+
+  ground.material.fragmentShader =
+    ground.material.fragmentShader.replace(
+      "blendOverlay( base.rgb, color )",
+      "mix(color, base.rgb, 0.13)"
+    );
+
+  ground.material.needsUpdate = true;
+
+  controls = new OrbitControls(
+    camera, renderer.domElement
+  );
+
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.06;
+
+  controls.autoRotate = false;
+
+  controls.maxPolarAngle =
+    Math.PI / 2 - 0.02;
+
+  controls.addEventListener("start", () => {
+
+    interacting = true;
+
+    pauseCinematic();
+
+  });
+
+  controls.addEventListener("end", () => {
+
+    interacting = false;
+
+    scheduleResume();
+
+  });
+
+  renderer.domElement.addEventListener(
+    "pointerdown", () => {
+
+      interacting = true;
+
+      pauseCinematic();
+
+    }
+  );
+
+  window.addEventListener(
+    "pointerup", () => {
+
+      if (!interacting) return;
+
+      interacting = false;
+
+      scheduleResume();
+
+    }
+  );
+
+  window.addEventListener(
+    "pointercancel", () => {
+
+      if (!interacting) return;
+
+      interacting = false;
+
+      scheduleResume();
+
+    }
+  );
+
+  new ResizeObserver(resizeViewer)
+    .observe(viewer);
+
+  resizeViewer();
+
+  animate();
+
+}
+
+function animate() {
+  if (tourClosed) return;
+
+  requestAnimationFrame(animate);
+
+  const delta = Math.min(
+    clock.getDelta(), 0.1
+  );
+
+  if (cinematicActive && currentModel) {
+
+    cinematicTime += delta;
+    transitionTime += delta;
+
+    const orbit = new THREE.Spherical();
+
+    orbit.setFromVector3(
+      camera.position.clone()
+        .sub(controls.target)
+    );
+
+    const phase =
+      cinematicTime * Math.PI * 2 / 60;
+
+    const desiredAngle =
+      THREE.MathUtils.degToRad(
+        45 + 15 * Math.sin(phase)
+      );
+
+    const desiredDistance =
+      baseDistance *
+      (1 - 0.12 * (1 - Math.cos(phase)) / 2);
+
+    const smooth =
+      1 - Math.exp(-delta * 1.5);
+
+    const ramp = Math.min(
+      transitionTime / 1.5, 1
+    );
+
+    orbit.theta -=
+      delta * Math.PI * 2 / 30 * ramp;
+
+    orbit.phi = THREE.MathUtils.lerp(
+      orbit.phi,
+      desiredAngle,
+      smooth
+    );
+
+    orbit.radius = THREE.MathUtils.lerp(
+      orbit.radius,
+      desiredDistance,
+      smooth
+    );
+
+    camera.position.setFromSpherical(orbit);
+
+    camera.position.add(controls.target);
+
+  }
+
+  if (animatedArrows.length) {
+    const t = clock.elapsedTime;
+    animatedArrows.forEach(arrow => {
+      const base = arrow.userData.basePosition;
+      const dir = arrow.userData.moveDirection;
+      arrow.position.copy(base).addScaledVector(
+        dir, Math.sin(t * 2.4) * arrow.userData.moveAmount
+      );
+    });
+  }
+
+  if (animatedPanoramaGroups.length) {
+    const t = clock.elapsedTime;
+    animatedPanoramaGroups.forEach(marker => {
+      marker.position.y = marker.userData.baseY +
+        Math.sin(t * 2.1 + marker.userData.phase) * marker.userData.floatHeight;
+      const pulse = 1 + 0.035 * (1 + Math.sin(t * 2.1 + marker.userData.phase));
+      marker.scale.setScalar(pulse);
+    });
+  }
+
+  controls.update();
+
+  renderer.render(scene, camera);
+
+}
+
+function hideMeasurements(model) {
+
+  model.traverse(obj => {
+
+    if (!obj.isMesh || !obj.material) return;
+
+    const m = obj.material;
+
+    if (!m.color || m.map) return;
+
+    const c = m.color;
+
+    const gray =
+      Math.abs(c.r - 1/3) < 0.001 &&
+      Math.abs(c.g - 1/3) < 0.001 &&
+      Math.abs(c.b - 1/3) < 0.001;
+
+    const white =
+      Math.abs(c.r - 1) < 0.001 &&
+      Math.abs(c.g - 1) < 0.001 &&
+      Math.abs(c.b - 1) < 0.001;
+
+    if (
+      (gray || white) &&
+      m.metalness === 0 &&
+      m.roughness === 0.5 &&
+      m.side === THREE.DoubleSide &&
+      !m.transmission
+    ) {
+
+      obj.visible = false;
+
+    }
+
+  });
+
+}
+
+function disposeModel(model) {
+
+  const geometries = new Set();
+  const materials = new Set();
+  const textures = new Set();
+
+  model.traverse(obj => {
+
+    if (!obj.isMesh) return;
+
+    if (obj.geometry) {
+
+      geometries.add(obj.geometry);
+
+    }
+
+    const mats = Array.isArray(obj.material)
+      ? obj.material
+      : [obj.material];
+
+    mats.forEach(m => {
+
+      if (!m) return;
+
+      materials.add(m);
+
+      Object.values(m).forEach(value => {
+
+        if (value && value.isTexture) {
+
+          textures.add(value);
+
+        }
+
+      });
+
+    });
+
+  });
+
+  geometries.forEach(g => g.dispose());
+  textures.forEach(t => t.dispose());
+  materials.forEach(m => m.dispose());
+
+}
+
+function openModel(folder, name) {
+  if (tourClosed) return;
+
+  initViewer();
+  currentFolder = folder;
+  currentFileName = name;
+  closePanorama();
+  applyVideo(folder, name);
+  applyMusic(folder, name);
+
+  const requestID = ++loadID;
+
+  pauseCinematic();
+
+  interacting = false;
+
+  showStatus("3D model yükleniyor...");
+
+  if (currentModel) {
+
+    scene.remove(currentModel);
+
+    disposeModel(currentModel);
+
+    currentModel = null;
+
+  }
+
+  new GLTFLoader().load(
+
+    modelPath(folder, name),
+
+    gltf => {
+
+      if (requestID !== loadID) {
+
+        disposeModel(gltf.scene);
+
+        return;
+
+      }
+
+      const model = gltf.scene;
+
+      hideMeasurements(model);
+
+      model.traverse(obj => {
+        if (obj.isMesh && !obj.name.startsWith("styledPlanOverlay")) {
+          obj.castShadow = true;
+          obj.receiveShadow = true;
+        }
+      });
+      
+model.traverse(obj => {
+
+  if (!obj.isMesh || !obj.material) return;
+
+  if (!obj.name.startsWith("styledPlanOverlay")) return;
+
+  const map = obj.material.map;
+
+  if (!map || !map.image) return;
+
+  const img = map.image;
+
+  // Oda isimlerini gizle
+  if (img.height === 63 && img.width >= 100) {
+    obj.visible = false;
+    return;
+  }
+
+  // Ölçü yazılarındaki beyaz konturu gri yap
+  if (img.width > 500 && img.height > 500) {
+
+    const canvas = document.createElement("canvas");
+
+    canvas.width = img.width;
+    canvas.height = img.height;
+
+    const ctx = canvas.getContext("2d");
+
+    ctx.drawImage(img, 0, 0);
+
+    const pixels = ctx.getImageData(
+      0, 0, canvas.width, canvas.height
+    );
+
+    const data = pixels.data;
+
+    for (let i = 0; i < data.length; i += 4) {
+
+      if (
+        data[i] > 220 &&
+        data[i + 1] > 220 &&
+        data[i + 2] > 220
+      ) {
+        data[i] = 208;
+        data[i + 1] = 208;
+        data[i + 2] = 208;
+      }
+
+    }
+
+    ctx.putImageData(pixels, 0, 0);
+
+    const texture = new THREE.CanvasTexture(canvas);
+
+    texture.colorSpace = map.colorSpace;
+    texture.flipY = map.flipY;
+
+    obj.material = obj.material.clone();
+    obj.material.map = texture;
+    obj.material.depthWrite = false;
+    obj.material.depthTest = true;
+obj.material.polygonOffset = false;
+obj.renderOrder = 10;
+    obj.material.needsUpdate = true;
+
+  }
+
+});
+
+
+      const box = new THREE.Box3()
+        .setFromObject(model);
+
+      const center = box.getCenter(
+        new THREE.Vector3()
+      );
+
+      const size = box.getSize(
+        new THREE.Vector3()
+      );
+
+      model.position.x -= center.x;
+      model.position.z -= center.z;
+      model.position.y -= box.min.y;
+
+      model.position.y += 0.01;
+
+      scene.add(model);
+      applyPlatformStyle(folder, name);
+      setupModelFeatures(folder, name, size);
+      currentModel = model;
+      modelHasLights = false;
+      model.traverse(object => {
+        if (!object.isLight) return;
+        modelHasLights = true;
+        if (folder && floorRank(name) === 1 && object.isDirectionalLight) {
+          object.castShadow = true;
+          object.shadow.mapSize.set(2048, 2048);
+          object.shadow.normalBias = 0.02;
+        } else if (!(folder && floorRank(name) === 1) && object.color) {
+          object.color.set(0xffffff);
+          if (object.groundColor) object.groundColor.set(0xffffff);
+        }
+      });
+      setLighting(compareLighting ? lightingMode : "neutral");
+
+      status.hidden = true;
+
+      resizeViewer();
+
+      const d = Math.max(
+        size.x, size.y, size.z, 0.1
+      );
+
+      const fit = Math.max(
+        1, 0.85 / camera.aspect
+      );
+
+      const radius = size.length() / 2;
+
+      const verticalFov =
+        THREE.MathUtils.degToRad(camera.fov);
+
+      const horizontalFov = 2 * Math.atan(
+        Math.tan(verticalFov / 2) *
+        camera.aspect
+      );
+
+      const limitingFov = Math.min(
+        verticalFov,
+        horizontalFov
+      );
+
+      baseDistance = Math.max(
+
+        d * 1.6 * Math.SQRT2 * fit,
+
+        radius /
+        Math.sin(limitingFov / 2) * 1.15
+
+      );
+
+      const h = baseDistance / Math.SQRT2;
+
+      controls.target.set(
+        0, size.y / 2, 0
+      );
+
+      camera.position.set(
+        0,
+        size.y / 2 + h,
+        h
+      );
+
+      camera.near = Math.max(
+        d / 1000, 0.001
+      );
+
+      camera.far = Math.max(
+        200, baseDistance * 10
+      );
+
+      camera.updateProjectionMatrix();
+
+      controls.minDistance = d * 0.15;
+
+      controls.maxDistance =
+        baseDistance * 4;
+
+      controls.update();
+
+      clearTimeout(resumeTimer);
+
+      cinematicTime = 0;
+
+      transitionTime = 1.5;
+
+      cinematicActive = !compareLighting;
+
+    },
+
+    undefined,
+
+    () => {
+
+      if (requestID === loadID) {
+
+        showStatus(
+          "3D model yüklenemedi. Lütfen tekrar deneyin."
+        );
+
+      }
+
+    }
+
+  );
+
+}
+
+async function openVilla(folder) {
+  if (tourClosed) return;
+
+  tour.hidden = false;
+
+  showTitle(folder, folder);
+
+  showStatus("Katlar yükleniyor...");
+
+  try {
+
+    const files = await getJSON(
+
+      API + "/contents/program/" +
+
+      encodeURIComponent(folder) +
+
+      "?ref=main"
+
+    );
+
+    if (tourClosed) return;
+    const models = files
+      .filter(f => f.type === "file" && isGLB(f.name))
+      .sort((a, b) => {
+        const ra = floorRank(a.name);
+        const rb = floorRank(b.name);
+        return ra === rb ? compareNames(a.name, b.name) : ra - rb;
+      });
+
+    if (!models.length) {
+
+      showStatus(
+        "Bu gayrimenkulde henüz model bulunmuyor."
+      );
+
+      return;
+
+    }
+
+    if (models.length > 1) {
+
+      floors.hidden = false;
+
+      const initialIndex = Math.max(0, models.findIndex(m => floorRank(m.name) === 1));
+
+      models.forEach((model, index) => {
+
+        const button =
+          document.createElement("button");
+
+        button.className = "floor-button";
+
+        button.textContent = floorLabel(model.name);
+
+        if (index === initialIndex) {
+
+          button.classList.add("active");
+
+        }
+
+        button.onclick = () => {
+
+          if (
+            button.classList.contains("active")
+          ) return;
+
+          floors.querySelectorAll("button")
+            .forEach(b => {
+
+              b.classList.remove("active");
+
+            });
+
+          button.classList.add("active");
+
+          openModel(folder, model.name);
+
+        };
+
+        floors.appendChild(button);
+
+      });
+
+    }
+
+    const initialModel = models.find(m => floorRank(m.name) === 1) || models[0];
+    openModel(folder, initialModel.name);
+
+  } catch {
+
+    showStatus(
+      "Katlar alınamadı. Lütfen sayfayı yenileyin."
+    );
+
+  }
+
+}
+
+function createItem(name, type, count) {
+
+  const url = new URL("./", location.href);
+  url.searchParams.set("v", "17005");
+  const shareConfig = type === "villa"
+    ? (appConfig.villas?.[name] || {})
+    : (appConfig.models?.[name] || {});
+  const shareUrl = shareConfig.sharePath
+    ? new URL(shareConfig.sharePath, location.href)
+    : null;
+
+  if (type === "villa") {
+
+    url.searchParams.set("villa", name);
+
+  } else {
+
+    url.searchParams.set("model", name);
+
+  }
+
+  const item = document.createElement("div");
+
+  item.className = "item";
+
+  const title = document.createElement("strong");
+
+  const refMatch = name.match(
+    /^(\d+)\s*-\s*/
+  );
+
+  if (refMatch) {
+
+    const ref = document.createElement("span");
+
+    ref.className = "ref";
+
+    ref.textContent =
+      "Ref: " + refMatch[1] + " ";
+
+    title.appendChild(ref);
+
+    title.appendChild(
+      document.createTextNode(niceName(name))
+    );
+
+  } else {
+
+    title.textContent = niceName(name);
+
+  }
+
+  const info = document.createElement("div");
+
+  info.className = "info";
+
+  info.textContent = count > 1
+    ? count + " kat"
+    : "Tek kat";
+
+  const open = document.createElement("a");
+
+  open.className = "open";
+  open.href = shareUrl ? shareUrl.href : url.href;
+  open.target = "_blank";
+  open.rel = "noopener";
+  open.textContent = "Görüntüle";
+
+  const copy = document.createElement("button");
+
+  copy.textContent = "Bağlantıyı kopyala";
+
+  copy.onclick = async () => {
+
+    try {
+
+      await navigator.clipboard.writeText((shareUrl || url).href);
+
+      copy.textContent = "Kopyalandı ✓";
+
+      setTimeout(() => {
+
+        copy.textContent = "Bağlantıyı kopyala";
+
+      }, 2000);
+
+    } catch {
+
+      prompt("Bağlantıyı kopyalayın:", (shareUrl || url).href);
+
+    }
+
+  };
+
+  item.append(title, info, open, copy);
+
+  list.appendChild(item);
+
+}
+
+async function loadModels() {
+
+  try {
+
+    const data = await getJSON(
+
+      API + "/git/trees/main?recursive=1"
+
+    );
+
+    if (data.truncated) {
+
+      throw new Error("Liste");
+
+    }
+
+    const rootModels = [];
+    const villas = new Map();
+
+    data.tree.forEach(entry => {
+
+      if (entry.type !== "blob") return;
+
+      if (!entry.path.startsWith("program/")) return;
+      const parts = entry.path.slice("program/".length).split("/");
+
+      if (
+
+        parts.length === 1 &&
+
+        isGLB(parts[0])
+
+      ) {
+
+        rootModels.push(parts[0]);
+
+      }
+
+      if (
+
+        parts.length === 2 &&
+
+        safeName(parts[0]) &&
+
+        isGLB(parts[1])
+
+      ) {
+
+        const folder = parts[0];
+
+        if (!villas.has(folder)) {
+
+          villas.set(folder, []);
+
+        }
+
+        villas.get(folder).push(parts[1]);
+
+      }
+
+    });
+
+    list.textContent = "";
+
+    const items = [
+
+      ...rootModels.map(name => ({
+
+        name,
+
+        type: "model",
+
+        count: 1
+
+      })),
+
+      ...Array.from(villas.entries())
+        .map(([name, models]) => ({
+
+          name,
+
+          type: "villa",
+
+          count: models.length
+
+        }))
+
+    ];
+
+    items.sort((a, b) =>
+
+      compareNames(a.name, b.name)
+
+    );
+
+    items.forEach(item => {
+
+      createItem(
+        item.name,
+        item.type,
+        item.count
+      );
+
+    });
+
+    if (!items.length) {
+
+      list.textContent =
+        "Henüz model yüklenmemiş.";
+
+    }
+
+  } catch {
+
+    list.textContent =
+      "Modeller alınamadı. Lütfen daha sonra sayfayı yenileyin.";
+
+  }
+
+}
+
+await loadAppConfig();
+if (villa && !appConfig.villas?.[villa]) {
+  const replacement = Object.entries(appConfig.villas || {}).find(([, cfg]) => cfg.legacyFolders?.includes(villa));
+  if (replacement) villa = replacement[0];
+}
+
+if (!tourClosed && file && isGLB(file)) {
+
+  tour.hidden = false;
+
+  showTitle(file, null);
+
+  openModel(null, file);
+
+} else if (!tourClosed && villa && safeName(villa)) {
+
+  openVilla(villa);
+
+} else {
+
+  if (!tourClosed) {
+    panel.hidden = false;
+    loadModels();
+  }
+
+}
+
+</script>
+
+</body>
+</html>
+
